@@ -1,4 +1,6 @@
 import * as fecApi from './fec-api';
+import * as openSecretsApi from './opensecrets-api';
+import * as congressApi from './congress-api';
 import { storage } from '../storage';
 import { mapFecCandidateToPolitician, mapFecDonationToContribution, detectPotentialConflict } from './data-mappers';
 
@@ -116,4 +118,192 @@ export async function importPoliticiansFromSearch(searchParams: any) {
     console.error(`Error in bulk import:`, error);
     throw error;
   }
+}
+
+/**
+ * Import votes for a politician using Congress.gov API via ProPublica
+ */
+export async function importVotesForPolitician(politicianId: number, memberId: string, congress: number = 117) {
+  try {
+    // Verify politician exists
+    const politician = await storage.getPolitician(politicianId);
+    if (!politician) {
+      throw new Error(`Politician with ID ${politicianId} not found`);
+    }
+    
+    // Get votes from the API
+    const votesResponse = await congressApi.getMemberVotes(memberId, congress);
+    const votes = votesResponse.results?.votes || [];
+    
+    // Array to track imported votes
+    const importedVotes = [];
+    
+    // Import each vote
+    for (const voteData of votes) {
+      try {
+        // Map API data to our schema
+        const voteToInsert = {
+          politicianId,
+          billName: voteData.bill?.bill_id || 'Unknown',
+          billUrl: voteData.bill?.bill_uri || null,
+          voteDate: new Date(voteData.date || Date.now()).toISOString(),
+          votePosition: voteData.position || 'Unknown',
+          voteChamber: voteData.chamber || 'Unknown',
+          voteDescription: voteData.description || '',
+          voteResult: voteData.result || 'Unknown',
+          potentialConflict: false // Would need additional logic to determine conflicts
+        };
+        
+        // Insert the vote
+        const insertedVote = await storage.createVote(voteToInsert);
+        importedVotes.push(insertedVote);
+      } catch (error: any) {
+        console.error(`Error importing vote: ${error.message}`);
+        // Continue with other votes even if one fails
+      }
+    }
+    
+    return { 
+      success: true, 
+      message: `Successfully imported ${importedVotes.length} votes for politician ID ${politicianId}`,
+      data: importedVotes
+    };
+  } catch (error: any) {
+    console.error(`Error importing votes for politician ID ${politicianId}: ${error.message}`);
+    return {
+      success: false,
+      message: `Failed to import votes: ${error.message}`,
+      error: error.message
+    };
+  }
+}
+
+/**
+ * Import contribution data for a politician from OpenSecrets
+ */
+export async function importContributionsFromOpenSecrets(politicianId: number, cid: string) {
+  try {
+    // Verify politician exists
+    const politician = await storage.getPolitician(politicianId);
+    if (!politician) {
+      throw new Error(`Politician with ID ${politicianId} not found`);
+    }
+    
+    // Get top contributors from OpenSecrets
+    const contributorsResponse = await openSecretsApi.getTopContributors(cid);
+    const contributors = contributorsResponse.response?.contributors?.contributor || [];
+    
+    // Import each contribution
+    const importedContributions = [];
+    
+    for (const contributor of Array.isArray(contributors) ? contributors : [contributors]) {
+      try {
+        // Map data to our contribution model
+        const contribution = {
+          politicianId,
+          organization: contributor['@attributes']?.org_name || 'Unknown',
+          amount: String(parseInt(contributor['@attributes']?.total || '0')),
+          contributionDate: new Date().toISOString(),
+          industry: contributor['@attributes']?.indus || 'Unknown'
+        };
+        
+        // Insert into database
+        const insertedContribution = await storage.createContribution(contribution);
+        importedContributions.push(insertedContribution);
+      } catch (error) {
+        console.error(`Error importing contribution from ${contributor['@attributes']?.org_name}:`, error);
+        // Continue with other contributions even if one fails
+      }
+    }
+    
+    // Get top industries data
+    const industriesResponse = await openSecretsApi.getTopIndustries(cid);
+    const industries = industriesResponse.response?.industries?.industry || [];
+    
+    // Import industry totals as contributions
+    for (const industry of Array.isArray(industries) ? industries : [industries]) {
+      try {
+        // Map data to our contribution model
+        const contribution = {
+          politicianId,
+          organization: `${industry['@attributes']?.industry_name} (Industry Total)`,
+          contributorName: industry['@attributes']?.industry_name || 'Unknown Industry',
+          amount: parseInt(industry['@attributes']?.total || '0'),
+          date: new Date().toISOString(),
+          industry: industry['@attributes']?.industry_code || 'Unknown',
+          state: politician.state,
+          potentialConflict: false
+        };
+        
+        // Insert into database
+        const insertedContribution = await storage.createContribution(contribution);
+        importedContributions.push(insertedContribution);
+      } catch (error) {
+        console.error(`Error importing industry contribution from ${industry['@attributes']?.industry_name}:`, error);
+        // Continue with other contributions even if one fails
+      }
+    }
+    
+    return { 
+      success: true, 
+      message: `Successfully imported ${importedContributions.length} contributions for politician ID ${politicianId}`,
+      data: importedContributions
+    };
+  } catch (error: any) {
+    console.error(`Error importing contributions for politician ID ${politicianId}:`, error);
+    return {
+      success: false,
+      message: `Failed to import contributions: ${error.message}`,
+      error: error.message
+    };
+  }
+}
+
+/**
+ * Process bulk data files
+ */
+export async function processBulkDataFile(
+  filePath: string,
+  source: 'opensecrets' | 'congress',
+  dataType: string
+) {
+  try {
+    if (source === 'opensecrets') {
+      return await openSecretsApi.processOpenSecretsBulkData(
+        filePath, 
+        dataType as 'contributions' | 'politicians' | 'lobbying'
+      );
+    } else if (source === 'congress') {
+      return await congressApi.processCongressBulkData(
+        filePath,
+        dataType as 'votes' | 'bills' | 'members'
+      );
+    } else {
+      throw new Error(`Unknown source: ${source}`);
+    }
+  } catch (error: any) {
+    console.error(`Error processing bulk data file:`, error);
+    return {
+      success: false,
+      message: `Failed to process bulk data: ${error.message}`,
+      error: error.message
+    };
+  }
+}
+
+/**
+ * Test API connections
+ */
+export async function testAPIConnections() {
+  const results = {
+    fec: await fecApi.testConnection(),
+    opensecrets: await openSecretsApi.testConnection(),
+    congress: await congressApi.testConnection()
+  };
+  
+  return {
+    success: results.fec.success || results.opensecrets.success || results.congress.success,
+    message: 'API connection test results',
+    data: results
+  };
 }

@@ -8,7 +8,7 @@ interface NetworkNode {
   type: 'politician' | 'organization';
   group: string;
   amount?: number;
-  image?: string | null;
+  image?: string | null | undefined;
 }
 
 interface NetworkLink {
@@ -52,10 +52,11 @@ export async function generateNetworkData(options: {
   // If specific politicians are requested, fetch only those, otherwise fetch all
   let politicians: Politician[] = [];
   if (politicianIds.length > 0) {
-    politicians = await Promise.all(
+    const politicianResults = await Promise.all(
       politicianIds.map(id => storage.getPolitician(id))
     );
-    politicians = politicians.filter(p => p !== undefined) as Politician[];
+    // Filter out undefined values and cast the result
+    politicians = politicianResults.filter((p): p is Politician => p !== undefined);
   } else {
     politicians = await storage.getPoliticians();
   }
@@ -144,12 +145,13 @@ export async function generateNetworkData(options: {
           
         if (isNaN(amount)) continue;
         
-        networkData.links.push({
+        const link: NetworkLink = {
           source: nodeId,
           target: politicianNodeId,
           value: amount,
           type: 'contribution'
-        });
+        };
+        networkData.links.push(link);
       }
     }
   }
@@ -194,13 +196,14 @@ export async function generateNetworkData(options: {
       // Create stock node
       const nodeId = `stock-${stockName.replace(/\s+/g, '-')}`;
       if (!nodeIds.has(nodeId)) {
-        networkData.nodes.push({
+        const node: NetworkNode = {
           id: nodeId,
           name: stockName,
           type: 'organization',
           group: 'Stock',
           amount: totalAmount
-        });
+        };
+        networkData.nodes.push(node);
         nodeIds.add(nodeId);
       }
       
@@ -215,12 +218,13 @@ export async function generateNetworkData(options: {
         
         const linkType = transaction.potentialConflict ? 'conflict' : 'contribution';
         
-        networkData.links.push({
+        const link: NetworkLink = {
           source: nodeId,
           target: politicianNodeId,
           value: amount,
           type: linkType
-        });
+        };
+        networkData.links.push(link);
       }
     }
   }
