@@ -11,6 +11,8 @@ import {
 import * as fecApi from "./api/fec-api";
 import * as dataSync from "./api/data-sync";
 import * as networkUtils from "./api/network-utils";
+import * as openSecretsApi from "./api/opensecrets-api";
+import * as congressApi from "./api/congress-api";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // API endpoints
@@ -459,6 +461,121 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // OpenSecrets API endpoints
+  app.get("/api/opensecrets/test-connection", async (req, res) => {
+    try {
+      const result = await openSecretsApi.testConnection();
+      res.json(result);
+    } catch (error) {
+      console.error("Error testing OpenSecrets API connection:", error);
+      res.status(500).json({ 
+        success: false, 
+        message: "Failed to test OpenSecrets API connection",
+        error: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+  
+  app.post("/api/import/opensecrets/contributions", async (req, res) => {
+    try {
+      const { politicianId, cid } = req.body;
+      
+      if (!politicianId || !cid) {
+        return res.status(400).json({ 
+          success: false, 
+          message: "Missing required parameters: politicianId and cid"
+        });
+      }
+      
+      const result = await dataSync.importContributionsFromOpenSecrets(politicianId, cid);
+      res.json(result);
+    } catch (error) {
+      console.error("Error importing contributions from OpenSecrets:", error);
+      res.status(500).json({ 
+        success: false, 
+        message: "Failed to import contributions from OpenSecrets",
+        error: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+  
+  // Congress.gov API endpoints
+  app.get("/api/congress/test-connection", async (req, res) => {
+    try {
+      const result = await congressApi.testConnection();
+      res.json(result);
+    } catch (error) {
+      console.error("Error testing Congress API connection:", error);
+      res.status(500).json({ 
+        success: false, 
+        message: "Failed to test Congress API connection",
+        error: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+  
+  app.post("/api/import/congress/votes", async (req, res) => {
+    try {
+      const { politicianId, memberId, congress } = req.body;
+      
+      if (!politicianId || !memberId) {
+        return res.status(400).json({ 
+          success: false, 
+          message: "Missing required parameters: politicianId and memberId"
+        });
+      }
+      
+      const result = await dataSync.importVotesForPolitician(politicianId, memberId, congress);
+      res.json(result);
+    } catch (error) {
+      console.error("Error importing votes from Congress API:", error);
+      res.status(500).json({ 
+        success: false, 
+        message: "Failed to import votes from Congress API",
+        error: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+  
+  // Bulk data processing
+  app.post("/api/import/bulk", async (req, res) => {
+    try {
+      const { filePath, source, dataType } = req.body;
+      
+      if (!filePath || !source || !dataType) {
+        return res.status(400).json({ 
+          success: false, 
+          message: "Missing required parameters: filePath, source, and dataType"
+        });
+      }
+      
+      const result = await dataSync.processBulkDataFile(filePath, source, dataType);
+      res.json(result);
+    } catch (error) {
+      console.error("Error processing bulk data:", error);
+      res.status(500).json({ 
+        success: false, 
+        message: "Failed to process bulk data",
+        error: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+  
+  // Test all API connections
+  app.get("/api/test-connections", async (req, res) => {
+    try {
+      const result = await dataSync.testAPIConnections();
+      res.json(result);
+    } catch (error) {
+      console.error("Error testing API connections:", error);
+      res.status(500).json({ 
+        success: false, 
+        message: "Failed to test API connections",
+        error: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+  
   // Network visualization endpoints
   app.get("/api/network", async (req, res) => {
     try {

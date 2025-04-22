@@ -117,13 +117,9 @@ export async function importVotesForPolitician(politicianId: number, memberId: s
         const voteToInsert: InsertVote = {
           politicianId,
           billName: voteData.bill?.bill_id || 'Unknown',
-          billUrl: voteData.bill?.bill_uri || null,
+          billDescription: voteData.description || '',
           voteDate: new Date(voteData.date || Date.now()).toISOString(),
-          votePosition: voteData.position || 'Unknown',
-          voteChamber: voteData.chamber || 'Unknown',
-          voteDescription: voteData.description || '',
-          voteResult: voteData.result || 'Unknown',
-          potentialConflict: false // Would need additional logic to determine conflicts
+          voteResult: voteData.position || 'Unknown'
         };
         
         // Insert the vote
