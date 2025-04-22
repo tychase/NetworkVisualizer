@@ -9,6 +9,7 @@ import {
   insertStockTransactionSchema
 } from "@shared/schema";
 import * as fecApi from "./api/fec-api";
+import * as dataSync from "./api/data-sync";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // API endpoints
@@ -303,6 +304,54 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error(`Error fetching disbursements for FEC committee with ID ${req.params.id}:`, error);
       res.status(500).json({ message: "Failed to fetch FEC committee disbursements" });
+    }
+  });
+
+  // Data import endpoints
+  app.post("/api/import/fec/politician/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const result = await dataSync.importPoliticianFromFEC(id);
+      res.json({
+        success: true,
+        message: "Successfully imported politician from FEC",
+        data: result
+      });
+    } catch (error) {
+      console.error(`Error importing politician with ID ${req.params.id} from FEC:`, error);
+      res.status(500).json({ 
+        success: false, 
+        message: "Failed to import politician from FEC",
+        error: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+
+  app.post("/api/import/fec/politicians/search", async (req, res) => {
+    try {
+      const { name, office, election_year, state, party, limit } = req.body;
+      
+      const params: any = {};
+      if (name) params.name = name;
+      if (office) params.office = office;
+      if (election_year) params.election_year = election_year;
+      if (state) params.state = state;
+      if (party) params.party = party;
+      if (limit) params.limit = limit;
+      
+      const result = await dataSync.importPoliticiansFromSearch(params);
+      res.json({
+        success: true,
+        message: "Successfully imported politicians from FEC search",
+        data: result
+      });
+    } catch (error) {
+      console.error("Error importing politicians from FEC search:", error);
+      res.status(500).json({ 
+        success: false, 
+        message: "Failed to import politicians from FEC search",
+        error: error instanceof Error ? error.message : "Unknown error"
+      });
     }
   });
 
