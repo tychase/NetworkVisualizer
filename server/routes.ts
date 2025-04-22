@@ -8,6 +8,7 @@ import {
   insertContributionSchema,
   insertStockTransactionSchema
 } from "@shared/schema";
+import * as fecApi from "./api/fec-api";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // API endpoints
@@ -173,6 +174,135 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       console.error("Error creating stock transaction:", error);
       res.status(500).json({ message: "Failed to create stock transaction" });
+    }
+  });
+
+  // FEC API endpoints
+  app.get("/api/fec/test-connection", async (req, res) => {
+    try {
+      const result = await fecApi.testConnection();
+      res.json(result);
+    } catch (error) {
+      console.error("Error testing FEC API connection:", error);
+      res.status(500).json({ 
+        success: false, 
+        message: "Failed to test FEC API connection",
+        error: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+
+  app.get("/api/fec/candidates/search", async (req, res) => {
+    try {
+      const { name, office, election_year, state, party, page, per_page } = req.query;
+      
+      const params: any = {};
+      if (name) params.name = String(name);
+      if (office) params.office = String(office);
+      if (election_year) params.election_year = Number(election_year);
+      if (state) params.state = String(state);
+      if (party) params.party = String(party);
+      if (page) params.page = Number(page);
+      if (per_page) params.per_page = Number(per_page);
+      
+      const result = await fecApi.searchCandidates(params);
+      res.json(result);
+    } catch (error) {
+      console.error("Error searching FEC candidates:", error);
+      res.status(500).json({ message: "Failed to search FEC candidates" });
+    }
+  });
+
+  app.get("/api/fec/candidates/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const result = await fecApi.getCandidateById(id);
+      res.json(result);
+    } catch (error) {
+      console.error(`Error fetching FEC candidate with ID ${req.params.id}:`, error);
+      res.status(500).json({ message: "Failed to fetch FEC candidate" });
+    }
+  });
+
+  app.get("/api/fec/candidates/:id/committees", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const result = await fecApi.getCandidateCommittees(id);
+      res.json(result);
+    } catch (error) {
+      console.error(`Error fetching committees for FEC candidate with ID ${req.params.id}:`, error);
+      res.status(500).json({ message: "Failed to fetch FEC candidate committees" });
+    }
+  });
+
+  app.get("/api/fec/candidates/:id/financials", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const result = await fecApi.getCandidateFinancials(id);
+      res.json(result);
+    } catch (error) {
+      console.error(`Error fetching financials for FEC candidate with ID ${req.params.id}:`, error);
+      res.status(500).json({ message: "Failed to fetch FEC candidate financials" });
+    }
+  });
+
+  app.get("/api/fec/committees/search", async (req, res) => {
+    try {
+      const { name, committee_type, state, party, page, per_page } = req.query;
+      
+      const params: any = {};
+      if (name) params.name = String(name);
+      if (committee_type) params.committee_type = String(committee_type);
+      if (state) params.state = String(state);
+      if (party) params.party = String(party);
+      if (page) params.page = Number(page);
+      if (per_page) params.per_page = Number(per_page);
+      
+      const result = await fecApi.searchCommittees(params);
+      res.json(result);
+    } catch (error) {
+      console.error("Error searching FEC committees:", error);
+      res.status(500).json({ message: "Failed to search FEC committees" });
+    }
+  });
+
+  app.get("/api/fec/committees/:id/contributions", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { min_amount, max_amount, two_year_transaction_period, page, per_page } = req.query;
+      
+      const params: any = {};
+      if (min_amount) params.min_amount = Number(min_amount);
+      if (max_amount) params.max_amount = Number(max_amount);
+      if (two_year_transaction_period) params.two_year_transaction_period = Number(two_year_transaction_period);
+      if (page) params.page = Number(page);
+      if (per_page) params.per_page = Number(per_page);
+      
+      const result = await fecApi.getCommitteeContributions(id as string, params);
+      res.json(result);
+    } catch (error) {
+      console.error(`Error fetching contributions for FEC committee with ID ${req.params.id}:`, error);
+      res.status(500).json({ message: "Failed to fetch FEC committee contributions" });
+    }
+  });
+
+  app.get("/api/fec/committees/:id/disbursements", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { min_amount, max_amount, two_year_transaction_period, page, per_page } = req.query;
+      
+      const params: any = {};
+      if (min_amount) params.min_amount = Number(min_amount);
+      if (max_amount) params.max_amount = Number(max_amount);
+      if (two_year_transaction_period) params.two_year_transaction_period = Number(two_year_transaction_period);
+      if (page) params.page = Number(page);
+      if (per_page) params.per_page = Number(per_page);
+      
+      const result = await fecApi.getCommitteeDisbursements(id as string, params);
+      res.json(result);
+    } catch (error) {
+      console.error(`Error fetching disbursements for FEC committee with ID ${req.params.id}:`, error);
+      res.status(500).json({ message: "Failed to fetch FEC committee disbursements" });
     }
   });
 
