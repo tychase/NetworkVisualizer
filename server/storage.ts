@@ -2,8 +2,11 @@ import {
   Politician, InsertPolitician, 
   Vote, InsertVote, 
   Contribution, InsertContribution, 
-  StockTransaction, InsertStockTransaction 
+  StockTransaction, InsertStockTransaction,
+  politicians, votes, contributions, stockTransactions
 } from "@shared/schema";
+import { db } from "./db";
+import { eq, like } from "drizzle-orm";
 
 export interface IStorage {
   // Politician methods
@@ -28,122 +31,94 @@ export interface IStorage {
   getStockTransactionsByPolitician(politicianId: number): Promise<StockTransaction[]>;
   getStockTransactionsByStock(stockName: string): Promise<StockTransaction[]>;
   createStockTransaction(transaction: InsertStockTransaction): Promise<StockTransaction>;
+  
+  // Data initialization
+  initializeSampleData(): Promise<void>;
 }
 
-export class MemStorage implements IStorage {
-  private politicians: Map<number, Politician>;
-  private votes: Map<number, Vote>;
-  private contributions: Map<number, Contribution>;
-  private stockTransactions: Map<number, StockTransaction>;
-  private politicianId: number;
-  private voteId: number;
-  private contributionId: number;
-  private stockTransactionId: number;
-
-  constructor() {
-    this.politicians = new Map();
-    this.votes = new Map();
-    this.contributions = new Map();
-    this.stockTransactions = new Map();
-    this.politicianId = 1;
-    this.voteId = 1;
-    this.contributionId = 1;
-    this.stockTransactionId = 1;
-
-    // Initialize with sample data
-    this.initializeSampleData();
-  }
-
+// Database storage implementation using Drizzle ORM
+export class DatabaseStorage implements IStorage {
   // Politician methods
   async getPoliticians(): Promise<Politician[]> {
-    return Array.from(this.politicians.values());
+    return await db.select().from(politicians);
   }
 
   async getPolitician(id: number): Promise<Politician | undefined> {
-    return this.politicians.get(id);
+    const [politician] = await db.select().from(politicians).where(eq(politicians.id, id));
+    return politician;
   }
 
   async createPolitician(insertPolitician: InsertPolitician): Promise<Politician> {
-    const id = this.politicianId++;
-    const politician: Politician = { id, ...insertPolitician };
-    this.politicians.set(id, politician);
+    const [politician] = await db.insert(politicians).values(insertPolitician).returning();
     return politician;
   }
 
   // Vote methods
   async getVotes(): Promise<Vote[]> {
-    return Array.from(this.votes.values());
+    return await db.select().from(votes);
   }
 
   async getVotesByPolitician(politicianId: number): Promise<Vote[]> {
-    return Array.from(this.votes.values()).filter(
-      (vote) => vote.politicianId === politicianId
-    );
+    return await db.select().from(votes).where(eq(votes.politicianId, politicianId));
   }
 
   async getVotesByBill(billName: string): Promise<Vote[]> {
-    return Array.from(this.votes.values()).filter(
-      (vote) => vote.billName.includes(billName)
-    );
+    return await db.select().from(votes).where(like(votes.billName, `%${billName}%`));
   }
 
   async createVote(insertVote: InsertVote): Promise<Vote> {
-    const id = this.voteId++;
-    const vote: Vote = { id, ...insertVote };
-    this.votes.set(id, vote);
+    const [vote] = await db.insert(votes).values(insertVote).returning();
     return vote;
   }
 
   // Contribution methods
   async getContributions(): Promise<Contribution[]> {
-    return Array.from(this.contributions.values());
+    return await db.select().from(contributions);
   }
 
   async getContributionsByPolitician(politicianId: number): Promise<Contribution[]> {
-    return Array.from(this.contributions.values()).filter(
-      (contribution) => contribution.politicianId === politicianId
-    );
+    return await db.select().from(contributions).where(eq(contributions.politicianId, politicianId));
   }
 
   async getContributionsByOrganization(organization: string): Promise<Contribution[]> {
-    return Array.from(this.contributions.values()).filter(
-      (contribution) => contribution.organization.includes(organization)
-    );
+    return await db.select().from(contributions).where(like(contributions.organization, `%${organization}%`));
   }
 
   async createContribution(insertContribution: InsertContribution): Promise<Contribution> {
-    const id = this.contributionId++;
-    const contribution: Contribution = { id, ...insertContribution };
-    this.contributions.set(id, contribution);
+    const [contribution] = await db.insert(contributions).values(insertContribution).returning();
     return contribution;
   }
 
   // Stock transaction methods
   async getStockTransactions(): Promise<StockTransaction[]> {
-    return Array.from(this.stockTransactions.values());
+    return await db.select().from(stockTransactions);
   }
 
   async getStockTransactionsByPolitician(politicianId: number): Promise<StockTransaction[]> {
-    return Array.from(this.stockTransactions.values()).filter(
-      (transaction) => transaction.politicianId === politicianId
-    );
+    return await db.select().from(stockTransactions).where(eq(stockTransactions.politicianId, politicianId));
   }
 
   async getStockTransactionsByStock(stockName: string): Promise<StockTransaction[]> {
-    return Array.from(this.stockTransactions.values()).filter(
-      (transaction) => transaction.stockName.includes(stockName)
-    );
+    return await db.select().from(stockTransactions).where(like(stockTransactions.stockName, `%${stockName}%`));
   }
 
   async createStockTransaction(insertTransaction: InsertStockTransaction): Promise<StockTransaction> {
-    const id = this.stockTransactionId++;
-    const transaction: StockTransaction = { id, ...insertTransaction };
-    this.stockTransactions.set(id, transaction);
+    const [transaction] = await db.insert(stockTransactions).values(insertTransaction).returning();
     return transaction;
   }
 
-  // Sample data initialization
-  private async initializeSampleData() {
+  // Sample data initialization - this will be called once to seed the database
+  async initializeSampleData(): Promise<void> {
+    // Check if we already have data
+    const existingPoliticians = await this.getPoliticians();
+    
+    if (existingPoliticians.length > 0) {
+      console.log("Database already contains data, skipping initialization");
+      return;
+    }
+    
+    console.log("Initializing database with sample data");
+    
     // Create politicians
     const janeSmith = await this.createPolitician({
       firstName: "Jane",
@@ -214,7 +189,7 @@ export class MemStorage implements IStorage {
     await this.createContribution({
       politicianId: janeSmith.id,
       organization: "TechGiant Inc.",
-      amount: 350000,
+      amount: "350000",
       contributionDate: new Date("2023-05-15"),
       industry: "Technology"
     });
@@ -222,7 +197,7 @@ export class MemStorage implements IStorage {
     await this.createContribution({
       politicianId: janeSmith.id,
       organization: "National Healthcare Association",
-      amount: 275000,
+      amount: "275000",
       contributionDate: new Date("2023-04-20"),
       industry: "Healthcare"
     });
@@ -230,7 +205,7 @@ export class MemStorage implements IStorage {
     await this.createContribution({
       politicianId: johnDavis.id,
       organization: "EnergyFuture Ltd.",
-      amount: 310000,
+      amount: "310000",
       contributionDate: new Date("2023-06-05"),
       industry: "Energy"
     });
@@ -238,7 +213,7 @@ export class MemStorage implements IStorage {
     await this.createContribution({
       politicianId: maryWilson.id,
       organization: "West Coast Financial Group",
-      amount: 225000,
+      amount: "225000",
       contributionDate: new Date("2023-03-12"),
       industry: "Finance"
     });
@@ -246,7 +221,7 @@ export class MemStorage implements IStorage {
     await this.createContribution({
       politicianId: robertJohnson.id,
       organization: "Clean Energy Coalition",
-      amount: 180000,
+      amount: "180000",
       contributionDate: new Date("2023-05-30"),
       industry: "Energy"
     });
@@ -257,7 +232,7 @@ export class MemStorage implements IStorage {
       stockName: "TechGiant Inc.",
       tradeDate: new Date("2023-08-12"),
       tradeType: "BUY",
-      amount: 75000,
+      amount: "75000",
       relatedBill: "Tech Regulation Act (H.R. 1234)",
       potentialConflict: true
     });
@@ -267,7 +242,7 @@ export class MemStorage implements IStorage {
       stockName: "EnergyFuture Ltd.",
       tradeDate: new Date("2023-07-28"),
       tradeType: "SELL",
-      amount: 175000,
+      amount: "175000",
       relatedBill: "Energy Policy Act (H.R. 567)",
       potentialConflict: true
     });
@@ -277,7 +252,7 @@ export class MemStorage implements IStorage {
       stockName: "PharmaPlus Corp.",
       tradeDate: new Date("2023-09-05"),
       tradeType: "BUY",
-      amount: 375000,
+      amount: "375000",
       relatedBill: "Healthcare Reform Bill (S. 789)",
       potentialConflict: false
     });
@@ -287,7 +262,7 @@ export class MemStorage implements IStorage {
       stockName: "DefenseTech Inc.",
       tradeDate: new Date("2023-10-18"),
       tradeType: "BUY",
-      amount: 32500,
+      amount: "32500",
       relatedBill: "Defense Appropriations (S. 231)",
       potentialConflict: false
     });
@@ -297,11 +272,14 @@ export class MemStorage implements IStorage {
       stockName: "TechGiant Inc.",
       tradeDate: new Date("2023-11-03"),
       tradeType: "SELL",
-      amount: 75000,
+      amount: "75000",
       relatedBill: "Tech Regulation Act (H.R. 1234)",
       potentialConflict: false
     });
+    
+    console.log("Sample data initialization complete");
   }
 }
 
-export const storage = new MemStorage();
+// Export a database storage instance
+export const storage = new DatabaseStorage();
