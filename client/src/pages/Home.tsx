@@ -64,69 +64,6 @@ const Home = () => {
         </div>
       </div>
 
-      {/* Features Section */}
-      <div className="py-16 bg-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center">
-            <h2 className="text-3xl font-bold text-dark-900 sm:text-4xl">
-              Explore Political Connections
-            </h2>
-            <p className="mt-4 max-w-2xl mx-auto text-xl text-gray-500">
-              Discover how money flows through politics and its potential influence on legislative decisions.
-            </p>
-          </div>
-
-          <div className="mt-16">
-            <div className="grid grid-cols-1 gap-8 md:grid-cols-3">
-              <div className="bg-light-100 p-6 rounded-lg shadow-sm hover:shadow-md transition-shadow duration-300">
-                <div className="h-12 w-12 flex items-center justify-center rounded-md bg-primary text-white mb-4">
-                  <i className="fas fa-project-diagram text-2xl"></i>
-                </div>
-                <h3 className="text-xl font-medium text-dark-900">Interactive Money Map</h3>
-                <p className="mt-2 text-gray-500">
-                  Visualize the network of money between politicians, organizations, and industries. See who funds whom and how it correlates with voting patterns.
-                </p>
-                <div className="mt-4">
-                  <Link href="/money-map" className="text-primary hover:text-blue-700 font-medium">
-                    Explore the Money Map <i className="fas fa-arrow-right ml-1"></i>
-                  </Link>
-                </div>
-              </div>
-
-              <div className="bg-light-100 p-6 rounded-lg shadow-sm hover:shadow-md transition-shadow duration-300">
-                <div className="h-12 w-12 flex items-center justify-center rounded-md bg-primary text-white mb-4">
-                  <i className="fas fa-user-tie text-2xl"></i>
-                </div>
-                <h3 className="text-xl font-medium text-dark-900">Politician Profiles</h3>
-                <p className="mt-2 text-gray-500">
-                  Detailed profiles of politicians including their voting history, campaign funding sources, and financial activities.
-                </p>
-                <div className="mt-4">
-                  <Link href="/politicians" className="text-primary hover:text-blue-700 font-medium">
-                    View Politician Profiles <i className="fas fa-arrow-right ml-1"></i>
-                  </Link>
-                </div>
-              </div>
-
-              <div className="bg-light-100 p-6 rounded-lg shadow-sm hover:shadow-md transition-shadow duration-300">
-                <div className="h-12 w-12 flex items-center justify-center rounded-md bg-primary text-white mb-4">
-                  <i className="fas fa-chart-line text-2xl"></i>
-                </div>
-                <h3 className="text-xl font-medium text-dark-900">Stock Trading Insights</h3>
-                <p className="mt-2 text-gray-500">
-                  Track stock transactions by politicians and analyze timing in relation to legislation they vote on or sponsor.
-                </p>
-                <div className="mt-4">
-                  <Link href="/stock-trades" className="text-primary hover:text-blue-700 font-medium">
-                    Analyze Stock Trades <i className="fas fa-arrow-right ml-1"></i>
-                  </Link>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
       {/* CTA Section */}
       <div className="bg-primary">
         <div className="max-w-7xl mx-auto py-12 px-4 sm:px-6 lg:py-16 lg:px-8 lg:flex lg:items-center lg:justify-between">
