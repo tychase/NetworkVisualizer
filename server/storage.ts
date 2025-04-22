@@ -157,7 +157,7 @@ export class DatabaseStorage implements IStorage {
       politicianId: janeSmith.id,
       billName: "Tech Regulation Act (H.R. 1234)",
       billDescription: "A bill to regulate technology companies and protect user data",
-      voteDate: new Date("2023-08-15"),
+      voteDate: "2023-08-15", // String format for date
       voteResult: "YES"
     });
 
@@ -165,7 +165,7 @@ export class DatabaseStorage implements IStorage {
       politicianId: johnDavis.id,
       billName: "Energy Policy Act (H.R. 567)",
       billDescription: "A bill to establish a comprehensive national energy policy",
-      voteDate: new Date("2023-07-25"),
+      voteDate: "2023-07-25", // String format for date
       voteResult: "NO"
     });
 
@@ -173,7 +173,7 @@ export class DatabaseStorage implements IStorage {
       politicianId: maryWilson.id,
       billName: "Healthcare Reform Bill (S. 789)",
       billDescription: "A bill to reform the healthcare system",
-      voteDate: new Date("2023-09-10"),
+      voteDate: "2023-09-10", // String format for date
       voteResult: "YES"
     });
 
@@ -181,7 +181,7 @@ export class DatabaseStorage implements IStorage {
       politicianId: robertJohnson.id,
       billName: "Tech Regulation Act (H.R. 1234)",
       billDescription: "A bill to regulate technology companies and protect user data",
-      voteDate: new Date("2023-08-15"),
+      voteDate: "2023-08-15", // String format for date
       voteResult: "NO"
     });
 
@@ -190,7 +190,7 @@ export class DatabaseStorage implements IStorage {
       politicianId: janeSmith.id,
       organization: "TechGiant Inc.",
       amount: "350000",
-      contributionDate: new Date("2023-05-15"),
+      contributionDate: "2023-05-15", // String format for date
       industry: "Technology"
     });
 
@@ -198,7 +198,7 @@ export class DatabaseStorage implements IStorage {
       politicianId: janeSmith.id,
       organization: "National Healthcare Association",
       amount: "275000",
-      contributionDate: new Date("2023-04-20"),
+      contributionDate: "2023-04-20", // String format for date
       industry: "Healthcare"
     });
 
@@ -206,7 +206,7 @@ export class DatabaseStorage implements IStorage {
       politicianId: johnDavis.id,
       organization: "EnergyFuture Ltd.",
       amount: "310000",
-      contributionDate: new Date("2023-06-05"),
+      contributionDate: "2023-06-05", // String format for date
       industry: "Energy"
     });
 
@@ -214,7 +214,7 @@ export class DatabaseStorage implements IStorage {
       politicianId: maryWilson.id,
       organization: "West Coast Financial Group",
       amount: "225000",
-      contributionDate: new Date("2023-03-12"),
+      contributionDate: "2023-03-12", // String format for date
       industry: "Finance"
     });
 
@@ -222,7 +222,7 @@ export class DatabaseStorage implements IStorage {
       politicianId: robertJohnson.id,
       organization: "Clean Energy Coalition",
       amount: "180000",
-      contributionDate: new Date("2023-05-30"),
+      contributionDate: "2023-05-30", // String format for date
       industry: "Energy"
     });
 
@@ -230,7 +230,7 @@ export class DatabaseStorage implements IStorage {
     await this.createStockTransaction({
       politicianId: janeSmith.id,
       stockName: "TechGiant Inc.",
-      tradeDate: new Date("2023-08-12"),
+      tradeDate: "2023-08-12", // String format for date
       tradeType: "BUY",
       amount: "75000",
       relatedBill: "Tech Regulation Act (H.R. 1234)",
@@ -240,7 +240,7 @@ export class DatabaseStorage implements IStorage {
     await this.createStockTransaction({
       politicianId: johnDavis.id,
       stockName: "EnergyFuture Ltd.",
-      tradeDate: new Date("2023-07-28"),
+      tradeDate: "2023-07-28", // String format for date
       tradeType: "SELL",
       amount: "175000",
       relatedBill: "Energy Policy Act (H.R. 567)",
@@ -250,7 +250,7 @@ export class DatabaseStorage implements IStorage {
     await this.createStockTransaction({
       politicianId: maryWilson.id,
       stockName: "PharmaPlus Corp.",
-      tradeDate: new Date("2023-09-05"),
+      tradeDate: "2023-09-05", // String format for date
       tradeType: "BUY",
       amount: "375000",
       relatedBill: "Healthcare Reform Bill (S. 789)",
@@ -260,7 +260,7 @@ export class DatabaseStorage implements IStorage {
     await this.createStockTransaction({
       politicianId: johnDavis.id,
       stockName: "DefenseTech Inc.",
-      tradeDate: new Date("2023-10-18"),
+      tradeDate: "2023-10-18", // String format for date
       tradeType: "BUY",
       amount: "32500",
       relatedBill: "Defense Appropriations (S. 231)",
@@ -270,7 +270,7 @@ export class DatabaseStorage implements IStorage {
     await this.createStockTransaction({
       politicianId: robertJohnson.id,
       stockName: "TechGiant Inc.",
-      tradeDate: new Date("2023-11-03"),
+      tradeDate: "2023-11-03", // String format for date
       tradeType: "SELL",
       amount: "75000",
       relatedBill: "Tech Regulation Act (H.R. 1234)",
