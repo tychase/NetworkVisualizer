@@ -397,6 +397,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     }
   });
+  
+  // Generate sample data for existing politician
+  app.post("/api/politicians/:id/generate-data", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ message: "Invalid politician ID" });
+      }
+      
+      // Check if politician exists
+      const politician = await storage.getPolitician(id);
+      if (!politician) {
+        return res.status(404).json({ message: "Politician not found" });
+      }
+      
+      // Generate sample data
+      await storage.createSampleDataForPolitician(id);
+      
+      res.json({
+        success: true,
+        message: `Successfully generated sample data for ${politician.firstName} ${politician.lastName}`,
+        politicianId: id
+      });
+    } catch (error) {
+      console.error(`Error generating sample data for politician with ID ${req.params.id}:`, error);
+      res.status(500).json({ 
+        success: false, 
+        message: "Failed to generate sample data",
+        error: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
 
   app.post("/api/import/fec/politicians/search", async (req, res) => {
     try {

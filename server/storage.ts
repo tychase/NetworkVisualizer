@@ -32,8 +32,9 @@ export interface IStorage {
   getStockTransactionsByStock(stockName: string): Promise<StockTransaction[]>;
   createStockTransaction(transaction: InsertStockTransaction): Promise<StockTransaction>;
   
-  // Data initialization
+  // Data initialization and enrichment
   initializeSampleData(): Promise<void>;
+  createSampleDataForPolitician(politicianId: number): Promise<void>;
 }
 
 // Database storage implementation using Drizzle ORM
@@ -278,6 +279,157 @@ export class DatabaseStorage implements IStorage {
     });
     
     console.log("Sample data initialization complete");
+  }
+
+  // Create sample data specifically for a politician
+  async createSampleDataForPolitician(politicianId: number): Promise<void> {
+    // First check if the politician exists
+    const politician = await this.getPolitician(politicianId);
+    if (!politician) {
+      throw new Error(`Politician with ID ${politicianId} not found`);
+    }
+
+    console.log(`Creating sample data for ${politician.firstName} ${politician.lastName}`);
+    
+    // Generate relevant industry based on politician's party
+    let industries = [];
+    if (politician.party === 'Democrat') {
+      industries = ['Technology', 'Healthcare', 'Education', 'Entertainment', 'Renewable Energy'];
+    } else if (politician.party === 'Republican') {
+      industries = ['Energy', 'Finance', 'Agriculture', 'Defense', 'Manufacturing'];
+    } else {
+      industries = ['Technology', 'Healthcare', 'Energy', 'Finance', 'Agriculture'];
+    }
+    
+    // Generate organizations based on industries
+    const organizationsByIndustry: Record<string, string[]> = {
+      'Technology': ['TechGiant Inc.', 'Software Solutions LLC', 'Digital Innovations', 'NetWorks Global'],
+      'Healthcare': ['National Healthcare Association', 'MediCorp Inc.', 'Health Systems Alliance', 'PharmaPlus Corp.'],
+      'Education': ['Education Reform Now', 'National Teachers Association', 'University Alliance', 'Academic Future Fund'],
+      'Entertainment': ['Media Conglomerate Inc.', 'Entertainment Alliance', 'Studio Networks', 'Digital Content Creators'],
+      'Renewable Energy': ['Clean Energy Coalition', 'Solar Future Inc.', 'Green Power Alliance', 'Sustainable Energy Group'],
+      'Energy': ['EnergyFuture Ltd.', 'National Petroleum Association', 'Power Systems Inc.', 'Global Resources Corp.'],
+      'Finance': ['West Coast Financial Group', 'National Banking Association', 'Investment Trust LLC', 'Financial Services Alliance'],
+      'Agriculture': ['National Farmers Association', 'Agricultural Industries', 'Farm Policy Alliance', 'Rural Development Corp.'],
+      'Defense': ['DefenseTech Inc.', 'Aerospace Alliance', 'National Security Association', 'Military Contractors Group'],
+      'Manufacturing': ['Manufacturing Alliance', 'Industrial Solutions Inc.', 'Production Systems Corp.', 'American Manufacturers Association']
+    };
+    
+    // Create 5 contributions for this politician
+    for (let i = 0; i < 5; i++) {
+      const industry = industries[Math.floor(Math.random() * industries.length)];
+      const organizations = organizationsByIndustry[industry] || ['Generic Organization'];
+      const organization = organizations[Math.floor(Math.random() * organizations.length)];
+      
+      // Generate a random amount between $10,000 and $500,000
+      const amount = Math.floor(Math.random() * 490000 + 10000).toString();
+      
+      // Generate a date from the last 2 years
+      const today = new Date();
+      const pastDate = new Date(today);
+      pastDate.setMonth(pastDate.getMonth() - Math.floor(Math.random() * 24));
+      const contributionDate = pastDate.toISOString().split('T')[0];
+      
+      await this.createContribution({
+        politicianId,
+        organization,
+        amount,
+        contributionDate,
+        industry
+      });
+    }
+    
+    // Create 3 votes
+    const bills = [
+      {
+        name: 'Tech Regulation Act (H.R. 1234)',
+        description: 'A bill to regulate technology companies and protect user data'
+      },
+      {
+        name: 'Energy Policy Act (H.R. 567)',
+        description: 'A bill to establish a comprehensive national energy policy'
+      },
+      {
+        name: 'Healthcare Reform Bill (S. 789)',
+        description: 'A bill to reform the healthcare system'
+      },
+      {
+        name: 'Defense Appropriations (S. 231)',
+        description: 'A bill to fund defense programs'
+      },
+      {
+        name: 'Infrastructure Investment Act (H.R. 345)',
+        description: 'A bill to invest in national infrastructure'
+      }
+    ];
+    
+    const voteResults = ['YES', 'NO', 'ABSTAIN'];
+    
+    for (let i = 0; i < 3; i++) {
+      const bill = bills[Math.floor(Math.random() * bills.length)];
+      const voteResult = voteResults[Math.floor(Math.random() * voteResults.length)];
+      
+      // Generate a date from the last year
+      const today = new Date();
+      const pastDate = new Date(today);
+      pastDate.setMonth(pastDate.getMonth() - Math.floor(Math.random() * 12));
+      const voteDate = pastDate.toISOString().split('T')[0];
+      
+      await this.createVote({
+        politicianId,
+        billName: bill.name,
+        billDescription: bill.description,
+        voteDate,
+        voteResult
+      });
+    }
+    
+    // Create 2 stock transactions
+    const stocks = [
+      'TechGiant Inc.',
+      'EnergyFuture Ltd.',
+      'PharmaPlus Corp.',
+      'DefenseTech Inc.',
+      'Financial Services Group',
+      'Agriculture Corp.',
+      'Manufacturing Solutions'
+    ];
+    
+    const tradeTypes = ['BUY', 'SELL'];
+    
+    for (let i = 0; i < 2; i++) {
+      const stockName = stocks[Math.floor(Math.random() * stocks.length)];
+      const tradeType = tradeTypes[Math.floor(Math.random() * tradeTypes.length)];
+      
+      // Generate a random amount between $15,000 and $300,000
+      const amount = Math.floor(Math.random() * 285000 + 15000).toString();
+      
+      // Generate a date from the last 18 months
+      const today = new Date();
+      const pastDate = new Date(today);
+      pastDate.setMonth(pastDate.getMonth() - Math.floor(Math.random() * 18));
+      const tradeDate = pastDate.toISOString().split('T')[0];
+      
+      // Potentially link to a related bill
+      const relatedBill = Math.random() > 0.5 
+        ? bills[Math.floor(Math.random() * bills.length)].name
+        : null;
+        
+      // Determine if there's a potential conflict
+      const potentialConflict = relatedBill !== null && Math.random() > 0.6;
+      
+      await this.createStockTransaction({
+        politicianId,
+        stockName,
+        tradeDate,
+        tradeType,
+        amount,
+        relatedBill,
+        potentialConflict
+      });
+    }
+    
+    console.log(`Created sample data for politician ID ${politicianId}`);
   }
 }
 
