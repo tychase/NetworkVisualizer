@@ -1,4 +1,5 @@
 import { pgTable, text, serial, integer, date, decimal, varchar, boolean } from "drizzle-orm/pg-core";
+import { relations } from 'drizzle-orm';
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -11,6 +12,8 @@ export const politicians = pgTable("politicians", {
   party: text("party").notNull(),
   profileImage: text("profile_image"),
 });
+
+// Note: We'll define politician relations after all tables are defined to avoid circular references
 
 export const insertPoliticianSchema = createInsertSchema(politicians).omit({
   id: true,
@@ -26,6 +29,14 @@ export const votes = pgTable("votes", {
   voteResult: text("vote_result").notNull(), // YES, NO, ABSTAIN
 });
 
+// Define vote relations
+export const votesRelations = relations(votes, ({ one }) => ({
+  politician: one(politicians, {
+    fields: [votes.politicianId],
+    references: [politicians.id],
+  }),
+}));
+
 export const insertVoteSchema = createInsertSchema(votes).omit({
   id: true,
 });
@@ -39,6 +50,14 @@ export const contributions = pgTable("contributions", {
   contributionDate: date("contribution_date").notNull(),
   industry: text("industry"),
 });
+
+// Define contribution relations
+export const contributionsRelations = relations(contributions, ({ one }) => ({
+  politician: one(politicians, {
+    fields: [contributions.politicianId],
+    references: [politicians.id],
+  }),
+}));
 
 export const insertContributionSchema = createInsertSchema(contributions).omit({
   id: true,
@@ -56,6 +75,14 @@ export const stockTransactions = pgTable("stock_transactions", {
   potentialConflict: boolean("potential_conflict").default(false),
 });
 
+// Define stock transaction relations
+export const stockTransactionsRelations = relations(stockTransactions, ({ one }) => ({
+  politician: one(politicians, {
+    fields: [stockTransactions.politicianId],
+    references: [politicians.id],
+  }),
+}));
+
 export const insertStockTransactionSchema = createInsertSchema(stockTransactions).omit({
   id: true,
 });
@@ -72,3 +99,10 @@ export type InsertContribution = z.infer<typeof insertContributionSchema>;
 
 export type StockTransaction = typeof stockTransactions.$inferSelect;
 export type InsertStockTransaction = z.infer<typeof insertStockTransactionSchema>;
+
+// Now define politician relations after all tables are defined
+export const politiciansRelations = relations(politicians, ({ many }) => ({
+  votes: many(votes),
+  contributions: many(contributions),
+  stockTransactions: many(stockTransactions),
+}));

@@ -1,55 +1,57 @@
 import axios from 'axios';
 import NodeCache from 'node-cache';
 
-// Base URL for FEC API
+// Cache responses for 1 hour to avoid hitting rate limits
+const cache = new NodeCache({ stdTTL: 3600 });
+
+// Base URL for the FEC API
 const FEC_API_BASE_URL = 'https://api.open.fec.gov/v1';
-const FEC_API_KEY = process.env.FEC_API_KEY;
 
-// Cache configuration (30 minute TTL)
-const cache = new NodeCache({ stdTTL: 1800 });
+// Check if API key is available
+if (!process.env.FEC_API_KEY) {
+  console.warn('FEC_API_KEY is not set. API requests will fail.');
+}
 
-// Helper function to make API requests with caching
+/**
+ * Helper function to make requests to the FEC API with caching
+ */
 async function fetchFromFEC(endpoint: string, params: Record<string, any> = {}) {
-  // Create cache key from endpoint and params
-  const cacheKey = `${endpoint}:${JSON.stringify(params)}`;
+  // Include API key in all requests
+  const apiKey = process.env.FEC_API_KEY;
   
-  // Check if we have a cached response
-  const cachedData = cache.get(cacheKey);
-  if (cachedData) {
-    console.log(`Cache hit for ${cacheKey}`);
-    return cachedData;
+  // Construct full URL and add API key
+  const fullParams = { ...params, api_key: apiKey };
+  
+  // Create cache key based on endpoint and params
+  const cacheKey = `${endpoint}:${JSON.stringify(fullParams)}`;
+  
+  // Check if response is in cache
+  const cachedResponse = cache.get(cacheKey);
+  if (cachedResponse) {
+    return cachedResponse;
   }
   
-  // Add API key to params
-  const requestParams = { 
-    ...params,
-    api_key: FEC_API_KEY
-  };
+  // Log the request being made (without API key)
+  console.log(`Fetching data from FEC API: ${endpoint}`);
   
   try {
-    console.log(`Fetching data from FEC API: ${endpoint}`);
+    // Make the request
     const response = await axios.get(`${FEC_API_BASE_URL}${endpoint}`, {
-      params: requestParams
+      params: fullParams
     });
     
-    // Cache the response data
+    // Cache the response
     cache.set(cacheKey, response.data);
     
     return response.data;
   } catch (error) {
-    if (axios.isAxiosError(error)) {
-      console.error('FEC API Error:', error.response?.data || error.message);
-    } else {
-      console.error('Unexpected error:', error);
-    }
+    console.error(`Error fetching data from FEC API:`, error);
     throw error;
   }
 }
 
-// Functions to interact with specific FEC API endpoints
-
 /**
- * Get information about a candidate by their FEC ID
+ * Get details for a specific candidate by ID
  */
 export async function getCandidateById(candidateId: string) {
   return fetchFromFEC(`/candidate/${candidateId}`);
@@ -60,7 +62,7 @@ export async function getCandidateById(candidateId: string) {
  */
 export async function searchCandidates(params: {
   name?: string;
-  office?: 'H' | 'S' | 'P'; // House, Senate, President
+  office?: string;
   election_year?: number;
   state?: string;
   party?: string;

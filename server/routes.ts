@@ -44,6 +44,77 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get politician with detailed stats
+  app.get("/api/politicians/:id/details", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ message: "Invalid politician ID" });
+      }
+      
+      // Get politician basic info
+      const politician = await storage.getPolitician(id);
+      if (!politician) {
+        return res.status(404).json({ message: "Politician not found" });
+      }
+
+      // Get contributions for this politician
+      const contributions = await storage.getContributionsByPolitician(id);
+      
+      // Calculate total contributions
+      const totalContributions = contributions.reduce((total, contribution) => {
+        const amount = typeof contribution.amount === 'string' 
+          ? parseFloat(contribution.amount) 
+          : Number(contribution.amount);
+        return total + (isNaN(amount) ? 0 : amount);
+      }, 0);
+      
+      // Count stock transactions
+      const stockTransactions = await storage.getStockTransactionsByPolitician(id);
+      
+      // Count votes
+      const votes = await storage.getVotesByPolitician(id);
+      
+      // Find top industry by contribution amount
+      const industryTotals: Record<string, number> = {};
+      contributions.forEach(contribution => {
+        if (!contribution.industry) return;
+        
+        const amount = typeof contribution.amount === 'string' 
+          ? parseFloat(contribution.amount) 
+          : Number(contribution.amount);
+          
+        if (isNaN(amount)) return;
+        
+        const industry = contribution.industry;
+        industryTotals[industry] = (industryTotals[industry] || 0) + amount;
+      });
+      
+      let topIndustry = '';
+      let topIndustryAmount = 0;
+      
+      Object.entries(industryTotals).forEach(([industry, amount]) => {
+        if (amount > topIndustryAmount) {
+          topIndustry = industry;
+          topIndustryAmount = amount;
+        }
+      });
+      
+      // Return combined data
+      res.json({
+        ...politician,
+        totalContributions,
+        stockTransactionsCount: stockTransactions.length,
+        keyVotesCount: votes.length,
+        topIndustry: topIndustry || null,
+        topIndustryAmount: topIndustryAmount || null
+      });
+    } catch (error) {
+      console.error(`Error fetching politician details with ID ${req.params.id}:`, error);
+      res.status(500).json({ message: "Failed to fetch politician details" });
+    }
+  });
+
   app.post("/api/politicians", async (req, res) => {
     try {
       const validatedData = insertPoliticianSchema.parse(req.body);
