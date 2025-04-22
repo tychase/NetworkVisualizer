@@ -1,0 +1,99 @@
+App Vision:
+Develop a web application that visually and interactively shows connections between American politicians, their voting records, financial contributions from special interest groups, and their stock market transactions. The main goal is transparency—making this complex information engaging, simple, and intuitive enough even for kids.
+
+Main Features to Implement First:
+1. Interactive "Money Map":
+Visually display politicians connected to organizations funding them.
+
+Highlight financial contributions, voting records, and key legislation.
+
+2. Politician Profiles:
+Detailed profiles showcasing a timeline of votes, campaign donations, and stock transactions.
+
+Allow filtering by politicians, companies, or policy areas.
+
+3. Stock Transactions & Vote Timing Visualization:
+Clearly illustrate timing relationships between politicians' stock trades and legislative votes.
+
+Highlight potential conflicts of interest visually.
+
+Technical Stack:
+Frontend: React.js, Tailwind CSS for clean UI
+
+Backend: FastAPI (Python)
+
+Database: PostgreSQL (start simple with Replit DB or Supabase later)
+
+Visualizations: D3.js or similar interactive chart library
+
+AI integration: OpenAI GPT API for summarizing bills and highlighting hidden provisions
+
+Initial Data Sources to Integrate (via APIs):
+Congressional vote data: GovTrack.us or ProPublica API
+
+Campaign finance data: OpenSecrets.org API, FEC API
+
+Stock transaction disclosures: Senate/House STOCK Act disclosures
+
+Starter Tasks in Replit:
+Please assist in setting up the following initial components clearly and neatly:
+
+Set up a React.js frontend in Replit with Tailwind CSS for basic UI.
+
+Set up a FastAPI backend capable of integrating with PostgreSQL (or Replit DB initially).
+
+Create basic API endpoints to fetch, store, and retrieve politician profiles, vote data, and financial transaction data.
+
+Draft initial visual prototype of an interactive network graph (politicians ↔ donors ↔ votes) using D3.js or similar.
+
+Example Data Schema (Simplified):
+Politicians Table
+
+sql
+Copy
+Edit
+politician_id SERIAL PRIMARY KEY,
+first_name VARCHAR(50),
+last_name VARCHAR(50),
+state VARCHAR(20),
+party VARCHAR(20),
+profile_image VARCHAR(255)
+Votes Table
+
+sql
+Copy
+Edit
+vote_id SERIAL PRIMARY KEY,
+politician_id INTEGER REFERENCES Politicians(politician_id),
+bill_name VARCHAR(255),
+vote_date DATE,
+vote_result VARCHAR(10) -- e.g., YES, NO
+Contributions Table
+
+sql
+Copy
+Edit
+contribution_id SERIAL PRIMARY KEY,
+politician_id INTEGER REFERENCES Politicians(politician_id),
+organization VARCHAR(255),
+amount DECIMAL,
+contribution_date DATE
+Stocks Table
+
+sql
+Copy
+Edit
+stock_trade_id SERIAL PRIMARY KEY,
+politician_id INTEGER REFERENCES Politicians(politician_id),
+stock_name VARCHAR(100),
+trade_date DATE,
+trade_type VARCHAR(10), -- BUY/SELL
+amount DECIMAL
+Additional Notes:
+Keep anonymity in mind: This project will initially be developed under a pseudo-identity (Tyler Chase), so structure project info accordingly.
+
+Plan for future AI integrations: Keep backend code modular enough to integrate OpenAI for summarizing complex bill texts later.
+
+Interactive and fun design: Design visual components with bright, friendly, approachable aesthetics to engage all audiences, including younger users.
+
+Please help set up the initial Replit project structure and generate clean, structured starter code for these features and tasks.
