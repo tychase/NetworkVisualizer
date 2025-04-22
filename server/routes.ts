@@ -10,6 +10,7 @@ import {
 } from "@shared/schema";
 import * as fecApi from "./api/fec-api";
 import * as dataSync from "./api/data-sync";
+import * as networkUtils from "./api/network-utils";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // API endpoints
@@ -455,6 +456,84 @@ export async function registerRoutes(app: Express): Promise<Server> {
         message: "Failed to import politicians from FEC search",
         error: error instanceof Error ? error.message : "Unknown error"
       });
+    }
+  });
+
+  // Network visualization endpoints
+  app.get("/api/network", async (req, res) => {
+    try {
+      const { politician_ids, include_contributions, include_stocks, max_nodes } = req.query;
+      
+      // Parse query parameters
+      const politicianIds = politician_ids ? String(politician_ids).split(',').map(id => parseInt(id)) : [];
+      const includeContributions = include_contributions === undefined ? true : include_contributions === 'true';
+      const includeStocks = include_stocks === undefined ? true : include_stocks === 'true';
+      const maxNodes = max_nodes ? parseInt(String(max_nodes)) : 100;
+      
+      // Generate network data
+      const networkData = await networkUtils.generateNetworkData({
+        politicianIds: politicianIds.filter(id => !isNaN(id)),
+        includeContributions,
+        includeStocks,
+        maxNodes
+      });
+      
+      res.json(networkData);
+    } catch (error) {
+      console.error("Error generating network data:", error);
+      res.status(500).json({ message: "Failed to generate network data" });
+    }
+  });
+  
+  app.get("/api/politicians/:id/network", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ message: "Invalid politician ID" });
+      }
+      
+      // Check if politician exists
+      const politician = await storage.getPolitician(id);
+      if (!politician) {
+        return res.status(404).json({ message: "Politician not found" });
+      }
+      
+      // Generate network data for this politician
+      const networkData = await networkUtils.generateNetworkData({
+        politicianIds: [id],
+        includeContributions: true,
+        includeStocks: true
+      });
+      
+      res.json(networkData);
+    } catch (error) {
+      console.error(`Error generating network data for politician with ID ${req.params.id}:`, error);
+      res.status(500).json({ message: "Failed to generate network data" });
+    }
+  });
+  
+  app.get("/api/politicians/:id/top-contributors", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ message: "Invalid politician ID" });
+      }
+      
+      // Check if politician exists
+      const politician = await storage.getPolitician(id);
+      if (!politician) {
+        return res.status(404).json({ message: "Politician not found" });
+      }
+      
+      const limit = req.query.limit ? parseInt(String(req.query.limit)) : 10;
+      
+      // Get top contributors by industry
+      const topContributors = await networkUtils.getTopContributorsByIndustry(id, limit);
+      
+      res.json(topContributors);
+    } catch (error) {
+      console.error(`Error getting top contributors for politician with ID ${req.params.id}:`, error);
+      res.status(500).json({ message: "Failed to get top contributors" });
     }
   });
 
