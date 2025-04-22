@@ -38,12 +38,7 @@ const Header = () => {
             >
               Politicians
             </Link>
-            <Link 
-              href="/stock-trades" 
-              className={`text-base font-medium ${location === '/stock-trades' ? 'text-primary' : 'text-gray-700 hover:text-primary'}`}
-            >
-              Stock Trades
-            </Link>
+
             <Link 
               href="/about" 
               className={`text-base font-medium ${location === '/about' ? 'text-primary' : 'text-gray-700 hover:text-primary'}`}
@@ -110,13 +105,7 @@ const Header = () => {
                   >
                     Politicians
                   </Link>
-                  <Link 
-                    href="/stock-trades" 
-                    className="text-base font-medium text-gray-900 hover:text-primary"
-                    onClick={closeMobileMenu}
-                  >
-                    Stock Trades
-                  </Link>
+
                   <Link 
                     href="/about" 
                     className="text-base font-medium text-gray-900 hover:text-primary"

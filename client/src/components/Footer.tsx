@@ -31,11 +31,7 @@ const Footer = () => {
                   Politicians
                 </Link>
               </li>
-              <li>
-                <Link href="/stock-trades" className="text-base text-gray-300 hover:text-white">
-                  Stock Trades
-                </Link>
-              </li>
+
               <li>
                 <Link href="/about" className="text-base text-gray-300 hover:text-white">
                   About

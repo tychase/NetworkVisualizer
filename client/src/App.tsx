@@ -7,7 +7,7 @@ import NotFound from "@/pages/not-found";
 import Home from "@/pages/Home";
 import MoneyMap from "@/pages/MoneyMap";
 import Politicians from "@/pages/Politicians";
-import StockTrades from "@/pages/StockTrades";
+
 import About from "@/pages/About";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
@@ -18,7 +18,7 @@ function Router() {
       <Route path="/" component={Home} />
       <Route path="/money-map" component={MoneyMap} />
       <Route path="/politicians" component={Politicians} />
-      <Route path="/stock-trades" component={StockTrades} />
+
       <Route path="/about" component={About} />
       <Route component={NotFound} />
     </Switch>
