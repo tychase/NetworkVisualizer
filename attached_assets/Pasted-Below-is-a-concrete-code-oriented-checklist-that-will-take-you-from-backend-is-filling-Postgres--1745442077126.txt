@@ -1,0 +1,112 @@
+Below is a concrete, code-oriented checklist that will take you from “backend is filling Postgres” → “people can see and play with the data”. Everything is framed to slot straight into the directory structure you already have in NetworkVisualizer/.
+
+1 ⃣ Bootstrap the React front-end to talk to your new API
+
+Task	How	Why
+Create a central API hook	frontend/src/api.ts with axios.create({ baseURL: import.meta.env.VITE_API_URL })	One place to swap local/Replit URLs.
+Add React Query	npm i @tanstack/react-query	Handles caching and pagination from /timeline.
+PoliticianTimeline component	GET /politicians/{id}/timeline?page= → infinite scroll list.	Fast visual win; proves end-to-end pipe.
+Routing	react-router-dom route /politicians/:id that renders <PoliticianTimeline />.	Deep link to any member.
+Skeleton (frontend/src/components/PoliticianTimeline.tsx):
+
+tsx
+Copy
+Edit
+import { useInfiniteQuery } from '@tanstack/react-query';
+import axios from '../api';
+
+export default function PoliticianTimeline({ id }: { id: string }) {
+  const { data, fetchNextPage, hasNextPage } = useInfiniteQuery(
+    ['timeline', id],
+    ({ pageParam = 1 }) =>
+      axios.get(`/politicians/${id}/timeline?page=${pageParam}&page_size=100`)
+           .then(r => r.data),
+    { getNextPageParam: (last) => last.next_page }
+  );
+
+  return (
+    <div className="space-y-4">
+      {data?.pages.flatMap(p => p.items).map(ev => (
+        <TimelineRow key={ev.uid} ev={ev} />
+      ))}
+      {hasNextPage && (
+        <button onClick={() => fetchNextPage()} className="btn">Load more</button>
+      )}
+    </div>
+  );
+}
+2 ⃣ Visual “Money Map” – first pass with react-force-graph
+npm i react-force-graph
+
+Backend helper endpoint:
+GET /politicians/{id}/network?n_days=365 →
+
+json
+Copy
+Edit
+{ "nodes":[{ "id":"p123", "type":"politician", "label":"Sen. Smith"} …],
+  "links":[{ "source":"p123","target":"org987","weight":60000,"kind":"contribution"} …] }
+Create MoneyGraph.tsx:
+
+tsx
+Copy
+Edit
+import ForceGraph2D from 'react-force-graph-2d';
+
+export default function MoneyGraph({ graph }) {
+  return (
+    <ForceGraph2D
+      graphData={graph}
+      nodeCanvasObject={(node, ctx) => {
+        ctx.fillStyle = node.type === 'politician' ? '#2563eb' : '#f59e0b';
+        ctx.beginPath();
+        ctx.arc(0,0,8,0,2*Math.PI); ctx.fill();
+        ctx.font = '10px sans-serif';
+        ctx.fillStyle = '#fff';
+        ctx.fillText(node.label, 10, 3);
+      }}
+      linkDirectionalParticles="value"
+      linkDirectionalParticleSpeed={d => d.weight/1000000}
+    />
+  );
+}
+Drop <MoneyGraph /> above the timeline on the same page.
+
+3 ⃣ Sparkline cards for quick “conflict” signals
+Endpoint: GET /politicians/{id}/conflicts?days=30
+returns list of { trade_id, bill_id, delta_days, amount, symbol }.
+
+Front-end: render red/yellow dot next to timeline rows where a conflict exists; hover tooltip shows trade details.
+
+4 ⃣ Wire the Celery/Redis worker logs to the UI
+Backend: /pipelines/status already gives run metadata. Add:
+
+python
+Copy
+Edit
+@app.get("/pipelines/status")
+def status():
+    runs = db.query(PipelineRun).order_by(PipelineRun.started_at.desc()).limit(10)
+    return [{"name": r.pipeline_name, "state": r.status, "rows": r.rows_ingested,
+             "finished": r.ended_at}]
+Front-end dashboard tile that auto-refreshes every 30 s with React Query.
+
+5 ⃣ Styling polish for “kid-friendly” vibe
+Tailwind already in repo – add tailwind.config.js with custom palette luxuryBlue, moneyGreen, warningRed.
+
+Use Heroicons for quick glyphs: money-bag, vote badge, chart-bar.
+
+6 ⃣ Optional fast follow
+
+Idea	One-liner
+Share button	Wrap any graph/timeline view in html2canvas → PNG → trigger download.
+Server-side PNG endpoint	FastAPI + matplotlib for tiny preview images usable in OG/Twitter cards.
+Live websocket push	FastAPI-WebSocket to stream new events (e.g., pipeline finished) to UI without refresh.
+How to proceed right now
+Pull latest repo (git pull origin main).
+
+Add frontend/ if not already committed.
+
+Implement the PoliticianTimeline fetcher – easiest path to seeing live data in the browser.
+
+Commit & push; open the Replit web view – you’ll have real votes + money on screen.
