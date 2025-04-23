@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, date, decimal, varchar, boolean } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, date, decimal, varchar, boolean, timestamp } from "drizzle-orm/pg-core";
 import { relations } from 'drizzle-orm';
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
@@ -11,6 +11,9 @@ export const politicians = pgTable("politicians", {
   state: text("state").notNull(),
   party: text("party").notNull(),
   profileImage: text("profile_image"),
+  // Add canonical IDs from external data sources
+  fecCandidateId: text("fec_candidate_id"),
+  bioguideId: text("bioguide_id"), // Congress API canonical ID
 });
 
 // Note: We'll define politician relations after all tables are defined to avoid circular references
@@ -87,6 +90,43 @@ export const insertStockTransactionSchema = createInsertSchema(stockTransactions
   id: true,
 });
 
+// Pipeline runs table to track the status of data pipeline runs
+export const pipelineRuns = pgTable("pipeline_runs", {
+  id: serial("id").primaryKey(),
+  pipelineName: text("pipeline_name").notNull(),
+  startedAt: timestamp("started_at").notNull(),
+  endedAt: timestamp("ended_at"),
+  status: text("status").notNull(), // running, completed, error
+  rowsProcessed: integer("rows_processed").default(0),
+  rowsInserted: integer("rows_inserted").default(0),
+  notes: text("notes"),
+  logUrl: text("log_url"), // URL to log file or cloud logging service
+});
+
+export const insertPipelineRunSchema = createInsertSchema(pipelineRuns).omit({
+  id: true,
+});
+
+// Politician alias table to handle different name formats across data sources
+export const politicianAliases = pgTable("politician_aliases", {
+  id: serial("id").primaryKey(),
+  politicianId: integer("politician_id").references(() => politicians.id).notNull(),
+  aliasName: text("alias_name").notNull(),
+  source: text("source").notNull(), // fec, congress, stockact, etc.
+});
+
+export const insertPoliticianAliasSchema = createInsertSchema(politicianAliases).omit({
+  id: true,
+});
+
+// Define politician alias relations
+export const politicianAliasesRelations = relations(politicianAliases, ({ one }) => ({
+  politician: one(politicians, {
+    fields: [politicianAliases.politicianId],
+    references: [politicians.id],
+  }),
+}));
+
 // Export types
 export type Politician = typeof politicians.$inferSelect;
 export type InsertPolitician = z.infer<typeof insertPoliticianSchema>;
@@ -100,9 +140,16 @@ export type InsertContribution = z.infer<typeof insertContributionSchema>;
 export type StockTransaction = typeof stockTransactions.$inferSelect;
 export type InsertStockTransaction = z.infer<typeof insertStockTransactionSchema>;
 
+export type PipelineRun = typeof pipelineRuns.$inferSelect;
+export type InsertPipelineRun = z.infer<typeof insertPipelineRunSchema>;
+
+export type PoliticianAlias = typeof politicianAliases.$inferSelect;
+export type InsertPoliticianAlias = z.infer<typeof insertPoliticianAliasSchema>;
+
 // Now define politician relations after all tables are defined
 export const politiciansRelations = relations(politicians, ({ many }) => ({
   votes: many(votes),
   contributions: many(contributions),
   stockTransactions: many(stockTransactions),
+  aliases: many(politicianAliases),
 }));

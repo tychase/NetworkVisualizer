@@ -1,0 +1,85 @@
+🔎 What’s already working
+
+Layer	Status	Quick comment
+Directory layout	backend/… pipelines/… api.py mirrors the spec we drafted.	Clear separation will pay off when you add unit tests and CI.
+Pipelines	Three discrete modules (FEC, Congress, STOCK Act) with test harness.	Nice: idempotent test runner means you can smoke-test each source quickly.
+FastAPI	CRUD + pipeline trigger endpoints with pagination.	Exposing a /pipelines/* namespace is perfect for future GitHub-Action or cron kicks.
+DB mapping	Tables for politicians, votes, contributions, stock_trades.	You’re using integer PKs, but also store canonical IDs (fec_candidate_id, bioguide_id) so you can join across sources later.
+🛠 High-impact improvements
+1. Make the ETL incremental & resumable
+Right now the scripts look like “download-full-file ➜ truncate table ➜ re-insert”. Switch to:
+
+text
+Copy
+Edit
+▪️ Last-modified header or checksum check
+▪️ If unchanged → skip
+▪️ Else → ingest only new rows (use created/updated_ts)
+Why? FEC monthly receipts and GovInfo bundles are huge; incremental loads cut bandwidth and protect your DB.
+
+2. Normalize politician identities early
+Use bioguide_id (Congress), fec_candidate_id (FEC) and a generated surrogate key.
+
+Build a tiny “alias” table so one join always resolves Jane Doe, even if the name string differs between datasets.
+
+3. Queue heavy jobs
+PDF → text (House/Senate disclosures) can block your async FastAPI worker.
+Add a lightweight queue:
+
+bash
+Copy
+Edit
+# requirements.txt
+celery[redis]  # or RQ / Dramatiq
+Run Celery workers in a separate Replit “Service” so OCR doesn’t slow the API.
+
+4. Observability
+Create a pipeline_runs table:
+
+| id | pipeline_name | started_at | ended_at | status | rows_ingested | log_url |
+
+Return this meta in /pipelines/status so your future dashboard shows freshness at a glance.
+
+5. Secrets & config
+Replit lets you add secrets in Secrets Manager. Replace hard-coded paths like:
+
+python
+Copy
+Edit
+FEC_DOWNLOAD_URL = "..."
+with
+
+python
+Copy
+Edit
+import os
+FEC_DOWNLOAD_URL = os.getenv("FEC_DOWNLOAD_URL")
+…and commit only .env.example.
+
+6. Unit tests & CI
+Add pytest with one happy-path test per pipeline (mocked sample files).
+Wire up a GitHub Action that:
+
+spins up Postgres,
+
+runs tests,
+
+lints with ruff or black.
+
+📈 Road-map next 2-3 days
+Incremental ingest (FEC first) → confirm row counts match the CSV diff.
+
+Add Celery/RQ worker + Redis for STOCK Act PDF OCR.
+
+Expose a GET /politicians/{id}/timeline endpoint that joins votes + money + stocks (will feed your UI & bot).
+
+Hook your React frontend to that single timeline endpoint to render a quick PoC Money Map.
+
+🌐 Primary government sources (for reference)
+
+Source	URL	Notes
+FEC bulk CSV	https://www.fec.gov/data/browse-data/?tab=bulk-data	Official contributions & expenditures 
+api.open.fec.gov
+Congress bulk data	https://www.congress.gov/developers → GovInfo XML dumps	Bills, roll-call votes, member data 
+Congress.gov | Library of Congress
+These are the exact feeds ProPublica/OpenSecrets cleaned and re-served—so you’re already tapping the originals
