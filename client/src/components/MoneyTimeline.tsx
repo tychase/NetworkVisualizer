@@ -65,7 +65,7 @@ export function MoneyTimeline({ politicianId }: MoneyTimelineProps) {
 
   // Fetch timeline data
   const { data, isLoading, error } = useQuery<TimelineResponse>({
-    queryKey: ['/api/politicians', politicianId, 'timeline', { page, sort: sortOrder }],
+    queryKey: [`/api/politicians/${politicianId}/timeline`, { page, sort: sortOrder }],
     enabled: !!politicianId,
   });
 
@@ -89,13 +89,19 @@ export function MoneyTimeline({ politicianId }: MoneyTimelineProps) {
   };
 
   // Format currency amount
-  const formatCurrency = (amount: number) => {
+  const formatCurrency = (amount: number | string) => {
+    // Convert to number if it's a string
+    const numericAmount = typeof amount === 'string' ? parseFloat(amount) : amount;
+    
+    // Return 0 if invalid number
+    if (isNaN(numericAmount)) return '$0';
+    
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: 'USD',
       minimumFractionDigits: 0,
       maximumFractionDigits: 0,
-    }).format(amount);
+    }).format(numericAmount);
   };
 
   // Filter events by type if filters are applied
