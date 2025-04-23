@@ -59,17 +59,18 @@ const PoliticianProfile: React.FC<PoliticianProfileProps> = ({ politician }) => 
         <div className="flex items-center justify-between">
           <div className="flex items-center">
             <img 
-              src={politician.profileImage || `https://randomuser.me/api/portraits/${politician.gender === 'female' ? 'women' : 'men'}/${politician.id % 100}.jpg`}
+              src={politician.photoUrl || politician.profileImage || `https://www.congress.gov/img/member/${politician.bioguideId}.jpg`}
               alt={`${politician.firstName} ${politician.lastName}`} 
               className="h-12 w-12 rounded-full object-cover" 
               onError={(e) => {
                 const target = e.target as HTMLImageElement;
-                target.src = `https://randomuser.me/api/portraits/lego/${politician.id % 8}.jpg`;
+                // Use a simple default avatar if the image fails to load
+                target.src = "https://www.congress.gov/img/member/default.jpg";
               }}
             />
             <div className="ml-4">
               <h3 className="text-lg font-medium text-white">
-                {politician.title || ''} {politician.firstName} {politician.lastName}
+                {politician.firstName} {politician.lastName}
               </h3>
               <p className="text-sm text-blue-100">
                 {politician.party} - {politician.state}
