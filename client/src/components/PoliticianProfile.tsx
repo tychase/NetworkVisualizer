@@ -1,10 +1,13 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { Link } from 'wouter';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Politician } from '@shared/schema';
 import { Skeleton } from '@/components/ui/skeleton';
 import ContributorsChart from './ContributorsChart';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Calendar } from 'lucide-react';
 
 interface PoliticianProfileProps {
   politician: Politician;
@@ -89,6 +92,17 @@ const PoliticianProfile: React.FC<PoliticianProfileProps> = ({ politician }) => 
         </TabsList>
 
         <TabsContent value="overview" className="px-4 py-5 sm:p-6">
+          <div className="mb-4">
+            <Link href={`/politicians/${politician.id}/timeline`}>
+              <Button 
+                variant="outline" 
+                className="flex items-center justify-center gap-2 text-primary hover:text-primary"
+              >
+                <Calendar className="h-4 w-4" />
+                <span>View Complete Money Timeline</span>
+              </Button>
+            </Link>
+          </div>
           <div className="md:grid md:grid-cols-3 md:gap-6">
             <div className="md:col-span-1">
               <h3 className="text-lg font-medium leading-6 text-dark-900">Financial Summary</h3>

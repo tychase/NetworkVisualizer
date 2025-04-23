@@ -1,6 +1,8 @@
 import { Politician } from '@shared/schema';
 import { Link } from 'wouter';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Calendar, DollarSign, TrendingUp } from 'lucide-react';
 
 interface PoliticianCardProps {
   politician: Politician;
@@ -36,6 +38,11 @@ const PoliticianCard: React.FC<PoliticianCardProps> = ({
     if (onClick) {
       onClick();
     }
+  };
+
+  // Prevent event bubbling when clicking the timeline link
+  const handleTimelineClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
   };
 
   return (
@@ -81,6 +88,19 @@ const PoliticianCard: React.FC<PoliticianCardProps> = ({
               {industry}
             </Badge>
           ))}
+        </div>
+        
+        {/* Timeline Button */}
+        <div className="mt-4 border-t pt-4">
+          <Link href={`/politicians/${politician.id}/timeline`} onClick={handleTimelineClick}>
+            <Button 
+              variant="outline" 
+              className="w-full flex items-center justify-center gap-2 text-primary hover:text-primary"
+            >
+              <Calendar className="h-4 w-4" />
+              <span>View Money Timeline</span>
+            </Button>
+          </Link>
         </div>
       </div>
     </div>
