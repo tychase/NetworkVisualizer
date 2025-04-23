@@ -4,6 +4,7 @@ This is a simplified version that provides the necessary API endpoints
 to work with the frontend
 """
 import os
+import sys
 import uvicorn
 from fastapi import FastAPI, BackgroundTasks
 from pydantic import BaseModel
@@ -11,6 +12,15 @@ from typing import Dict, List, Optional
 import random
 import time
 from datetime import datetime
+
+# Set up logging to file
+import logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    filename='pipeline_api.log',
+    filemode='a'
+)
 
 # Create FastAPI app
 app = FastAPI(title="Data Pipeline API")
@@ -166,4 +176,5 @@ if __name__ == "__main__":
     port = int(os.environ.get("PORT", "8000"))
     
     print(f"Starting FastAPI data pipeline server on port {port}")
-    uvicorn.run(app, host="0.0.0.0", port=port)
+    # Use host 0.0.0.0 to make it accessible from outside
+    uvicorn.run(app, host="0.0.0.0", port=port, log_level="info")
