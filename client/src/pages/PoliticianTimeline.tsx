@@ -128,7 +128,8 @@ export default function PoliticianTimeline() {
               />
             ) : (
               <div className="h-24 w-24 rounded-full bg-gray-200 flex items-center justify-center text-gray-500">
-                {politician.firstName[0]}{politician.lastName[0]}
+                {politician.firstName && politician.firstName.length > 0 ? politician.firstName[0] : ''}
+                {politician.lastName && politician.lastName.length > 0 ? politician.lastName[0] : ''}
               </div>
             )}
             <div>
