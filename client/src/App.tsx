@@ -8,6 +8,7 @@ import Home from "@/pages/Home";
 import MoneyMap from "@/pages/MoneyMap";
 import Politicians from "@/pages/Politicians";
 import PoliticianTimeline from "@/pages/PoliticianTimeline";
+import { DataImportPage } from "@/pages/DataImportPage";
 
 import About from "@/pages/About";
 import Header from "@/components/Header";
@@ -20,6 +21,7 @@ function Router() {
       <Route path="/money-map" component={MoneyMap} />
       <Route path="/politicians" component={Politicians} />
       <Route path="/politicians/:id/timeline" component={PoliticianTimeline} />
+      <Route path="/data-management" component={DataImportPage} />
 
       <Route path="/about" component={About} />
       <Route component={NotFound} />

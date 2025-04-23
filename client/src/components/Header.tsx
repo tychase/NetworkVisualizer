@@ -38,7 +38,12 @@ const Header = () => {
             >
               Politicians
             </Link>
-
+            <Link 
+              href="/data-management" 
+              className={`text-base font-medium ${location === '/data-management' ? 'text-primary' : 'text-gray-700 hover:text-primary'}`}
+            >
+              Data Management
+            </Link>
             <Link 
               href="/about" 
               className={`text-base font-medium ${location === '/about' ? 'text-primary' : 'text-gray-700 hover:text-primary'}`}
@@ -105,7 +110,13 @@ const Header = () => {
                   >
                     Politicians
                   </Link>
-
+                  <Link 
+                    href="/data-management" 
+                    className="text-base font-medium text-gray-900 hover:text-primary"
+                    onClick={closeMobileMenu}
+                  >
+                    Data Management
+                  </Link>
                   <Link 
                     href="/about" 
                     className="text-base font-medium text-gray-900 hover:text-primary"

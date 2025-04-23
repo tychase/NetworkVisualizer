@@ -36,9 +36,10 @@ export function PoliticiansTable({ politicians, isLoading }: PoliticiansTablePro
   const handleRefreshPolitician = async (politicianId: number) => {
     try {
       // This is just a placeholder - actual implementation would depend on API endpoints
-      await apiRequest(`/api/politicians/${politicianId}/refresh`, {
-        method: 'POST'
-      });
+      await apiRequest(
+        'POST',
+        `/api/politicians/${politicianId}/refresh`
+      );
       
       // Invalidate queries to refresh data
       queryClient.invalidateQueries({ queryKey: ['/api/politicians'] });

@@ -24,9 +24,10 @@ export function DataImportPanel() {
       setImportStatus({});
       setIsImporting(true);
       
-      const response = await apiRequest(`/api/pipelines/${pipeline}`, {
-        method: 'POST'
-      });
+      const response = await apiRequest(
+        'POST',
+        `/api/pipelines/${pipeline}`
+      );
       
       setImportStatus({
         success: true,
