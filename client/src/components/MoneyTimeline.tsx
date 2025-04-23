@@ -2,13 +2,29 @@ import { useState, useEffect } from 'react';
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import TimelineRow from './TimelineRow';
 import { Button } from "@/components/ui/button";
-import { Spinner } from "@/components/ui/spinner";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { AlertCircle } from 'lucide-react';
+import { AlertCircle, Loader2 } from 'lucide-react';
 import axios from '../api';
 
 interface TimelineProps {
   politicianId: number;
+}
+
+interface TimelineResponse {
+  items: any[];
+  total: number;
+  page: number;
+  page_size: number;
+  total_pages: number;
+  next_page: number | null;
+}
+
+interface Conflict {
+  trade_id: number;
+  bill_id: number;
+  delta_days: number;
+  amount: number;
+  symbol: string;
 }
 
 export function MoneyTimeline({ politicianId }: TimelineProps) {
@@ -21,17 +37,18 @@ export function MoneyTimeline({ politicianId }: TimelineProps) {
     fetchNextPage,
     hasNextPage,
     isFetchingNextPage
-  } = useInfiniteQuery({
+  } = useInfiniteQuery<TimelineResponse>({
     queryKey: [`/api/politicians/${politicianId}/timeline`],
     queryFn: ({ pageParam = 1 }) => 
       axios.get(`/api/politicians/${politicianId}/timeline?page=${pageParam}&page_size=10`)
         .then(response => response.data),
-    getNextPageParam: (lastPage) => lastPage.next_page || undefined,
+    getNextPageParam: (lastPage: TimelineResponse) => lastPage.next_page || undefined,
+    initialPageParam: 1,
     enabled: !!politicianId
   });
 
   // Fetch potential conflicts
-  const { data: conflicts } = useQuery({
+  const { data: conflicts = [] } = useQuery<Conflict[]>({
     queryKey: [`/api/politicians/${politicianId}/conflicts`],
     enabled: !!politicianId
   });
@@ -39,7 +56,7 @@ export function MoneyTimeline({ politicianId }: TimelineProps) {
   if (isLoading) {
     return (
       <div className="flex justify-center items-center h-64">
-        <Spinner className="h-8 w-8" />
+        <Loader2 className="h-8 w-8 animate-spin" />
       </div>
     );
   }
@@ -73,7 +90,7 @@ export function MoneyTimeline({ politicianId }: TimelineProps) {
       <h2 className="text-2xl font-bold mb-4">Activity Timeline</h2>
       
       {timelineItems.map((event) => (
-        <TimelineRow key={event.uid} ev={event} conflicts={conflicts || []} />
+        <TimelineRow key={event.uid} ev={event} conflicts={conflicts} />
       ))}
       
       {hasNextPage && (
@@ -85,7 +102,7 @@ export function MoneyTimeline({ politicianId }: TimelineProps) {
           >
             {isFetchingNextPage ? (
               <>
-                <Spinner className="mr-2 h-4 w-4" />
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 Loading more...
               </>
             ) : (

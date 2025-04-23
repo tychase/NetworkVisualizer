@@ -100,7 +100,7 @@ export default function TimelineRow({ ev, conflicts = [] }: TimelineRowProps) {
           <div className="mt-2">
             {ev.type === 'vote' && (
               <p className="text-sm">
-                <Badge variant={ev.data.voteResult === 'Yes' ? 'success' : 'destructive'}>
+                <Badge variant={ev.data.voteResult === 'Yes' ? 'default' : 'destructive'}>
                   {ev.data.voteResult}
                 </Badge>
                 {ev.data.billDescription && (

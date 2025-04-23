@@ -2,10 +2,13 @@ import { useEffect, useState } from "react";
 import { useParams, useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { MoneyTimeline } from "@/components/MoneyTimeline";
+import MoneyGraph from "@/components/MoneyGraph";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, AlertCircle } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { twMerge } from "tailwind-merge";
 import { clsx } from "clsx";
 
@@ -38,10 +41,17 @@ export default function PoliticianTimeline() {
   const [, setLocation] = useLocation();
   // Default to 1 if no ID is provided to prevent NaN issues
   const politicianId = params && params.id ? parseInt(params.id) : 1;
+  const [activeTab, setActiveTab] = useState("timeline");
 
   // Fetch politician details
   const { data: politician, isLoading, error } = useQuery<Politician>({
     queryKey: ['/api/politicians', politicianId],
+    enabled: !!politicianId && !isNaN(politicianId),
+  });
+  
+  // Fetch potential conflicts
+  const { data: conflicts } = useQuery<any[]>({
+    queryKey: [`/api/politicians/${politicianId}/conflicts`],
     enabled: !!politicianId && !isNaN(politicianId),
   });
 
@@ -130,6 +140,9 @@ export default function PoliticianTimeline() {
     );
   }
   
+  // Check if conflicts exist
+  const hasConflicts = conflicts && conflicts.length > 0;
+  
   return (
     <Container>
       <div className="py-6">
@@ -138,11 +151,21 @@ export default function PoliticianTimeline() {
         </Button>
         
         <Card className="w-full mb-6">
-          <CardHeader>
-            <CardTitle>{politician.firstName} {politician.lastName}</CardTitle>
-            <CardDescription>
-              {politician.party}-{politician.state}
-            </CardDescription>
+          <CardHeader className="flex flex-row items-start justify-between">
+            <div>
+              <CardTitle>{politician.firstName} {politician.lastName}</CardTitle>
+              <CardDescription>
+                {politician.party}-{politician.state}
+              </CardDescription>
+            </div>
+            {hasConflicts && (
+              <Alert variant="destructive" className="w-auto p-2">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>
+                  {conflicts!.length} potential conflict{conflicts!.length !== 1 ? 's' : ''} detected
+                </AlertDescription>
+              </Alert>
+            )}
           </CardHeader>
           <CardContent className="flex items-center gap-4">
             {politician.profileImage ? (
@@ -164,7 +187,18 @@ export default function PoliticianTimeline() {
           </CardContent>
         </Card>
         
-        <MoneyTimeline politicianId={politician.id} />
+        <Tabs defaultValue={activeTab} value={activeTab} onValueChange={setActiveTab} className="mb-6">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="timeline">Activity Timeline</TabsTrigger>
+            <TabsTrigger value="network">Money Network</TabsTrigger>
+          </TabsList>
+          <TabsContent value="timeline" className="mt-4">
+            <MoneyTimeline politicianId={politician.id} />
+          </TabsContent>
+          <TabsContent value="network" className="mt-4">
+            <MoneyGraph politicianId={politician.id} />
+          </TabsContent>
+        </Tabs>
       </div>
     </Container>
   );
