@@ -1,0 +1,130 @@
+Below is a “turn-the-placeholders-into-reality” checklist.
+Follow it in order and you’ll see real members of Congress, real money, and real trades populate the UI instead of the mock cards you hard-coded for design work.
+
+1 ️⃣ Finish the initial full ingest
+a. Run each pipeline once in “full-refresh” mode
+(You already coded the flag in each script.)
+
+bash
+Copy
+Edit
+# inside Replit shell
+python backend/fec_pipeline.py  --full
+python backend/congress_pipeline.py  --full
+python backend/stock_pipeline.py  --full
+Watch pipeline_runs → rows_ingested climb into the tens-/hundreds-of-thousands.
+
+b. Verify “politicians” table has real records
+sql
+Copy
+Edit
+SELECT id, first_name, party, state, bioguide_id
+FROM politicians
+ORDER BY id
+LIMIT 5;
+If it’s empty you probably haven’t synced the Congress-member XML into Politicians yet
+→ rerun congress_pipeline.py --full and look for the “💾 Members synced” log line.
+
+2 ️⃣ Link every dataset to the same person
+Add this to backend/models.py:
+
+python
+Copy
+Edit
+class PoliticianAlias(Base):
+    __tablename__ = "politician_aliases"
+    id = Column(Integer, primary_key=True)
+    politician_id = Column(Integer, ForeignKey("politicians.id"))
+    source = Column(String)          # 'bioguide' / 'fec' / 'house_fd'
+    external_id = Column(String)
+During each pipeline insert:
+
+python
+Copy
+Edit
+def upsert_alias(session, politician_id, source, ext_id):
+    if not session.query(PoliticianAlias).filter_by(
+            source=source, external_id=ext_id).first():
+        session.add(PoliticianAlias(
+            politician_id=politician_id, source=source, external_id=ext_id))
+That makes joining stock trades (House FD ext ID), FEC contributions, and votes trivial.
+
+3 ️⃣ Fill the photo URL (nice bonus)
+python
+Copy
+Edit
+pol.photo_url = f"https://www.congress.gov/img/member/{pol.bioguide_id.lower()}.jpg"
+Many member images are already served at that predictable path.
+
+4 ️⃣ Expose a real list endpoint (no mocks)
+Add to api.py:
+
+python
+Copy
+Edit
+@app.get("/politicians")
+def list_politicians(limit:int = 50, offset:int = 0):
+    rows = (
+      db.query(Politician)
+        .order_by(Politician.last_name)
+        .offset(offset).limit(limit).all()
+    )
+    return [p.as_dict() for p in rows]
+(Remove or comment-out any temporary /demo-politicians route.)
+
+5 ️⃣ Swap the React mock data for live fetch
+frontend/src/pages/Politicians.tsx
+
+tsx
+Copy
+Edit
+const { data, isLoading } = useQuery({
+  queryKey: ['politicians'],
+  queryFn: () => api.get('/politicians?limit=60').then(r => r.data),
+});
+
+if (isLoading) return <Spinner/>;
+
+return (
+  <div className="grid md:grid-cols-3 gap-6">
+    {data.map((p: Politician) => (
+       <Card key={p.id}>
+         <img src={p.photo_url} className="h-16 w-16 rounded-full"/>
+         <h3>{p.first_name} {p.last_name}</h3>
+         <p>{p.party} – {p.state}</p>
+         <p className="text-sm text-gray-500">
+           Contributions ${p.contribution_total_millions}M •
+           Trades {p.trade_count}
+         </p>
+         <Link to={`/politicians/${p.id}`} className="btn mt-2">
+             View Money Timeline
+         </Link>
+       </Card>
+    ))}
+  </div>
+);
+Delete the static Jane Smith / John Davis / Mary Wilson JSON you used for design.
+
+6 ️⃣ Money-timeline actually loads
+Your detail page already hits /politicians/{id}/timeline.
+Once the ingest and alias steps above run, the query will return rows and the “No timeline data” placeholder disappears.
+
+If you still see “0 items”:
+
+Confirm the politician’s id in the URL matches the politician_id in votes, contributions, stock_trades.
+
+Check FastAPI logs for "JOIN condition" warnings → usually means alias missing.
+
+7 ️⃣ Seed script (optional but handy)
+Place in backend/seed.py:
+
+python
+Copy
+Edit
+from backend import fec_pipeline, congress_pipeline, stock_pipeline
+for pipe in (congress_pipeline.run_full,
+             fec_pipeline.run_full,
+             stock_pipeline.run_full):
+    pipe()
+Run once after a fresh DB so you’re never tempted to re-add fake cards again.
+
