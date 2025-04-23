@@ -51,6 +51,28 @@ def upsert_alias(session: Session, politician_id: int, source: str, external_id:
         )
         session.commit()
 
+def build_photo_url(bioguide_id: str) -> str:
+    """
+    Build a reliable photo URL string with primary and fallback sources
+    
+    Args:
+        bioguide_id: The bioguide ID for the politician
+        
+    Returns:
+        A pipe-separated string containing primary and fallback photo URLs
+    """
+    if not bioguide_id:
+        return ""
+        
+    # 1️⃣ primary: open-source unitedstates.io mirror
+    uio_url = f"https://theunitedstates.io/images/congress/450x550/{bioguide_id}.jpg"
+    # 2️⃣ fallback: official bioguide cloudfront
+    cf_url = (
+        f"https://bioguide-cloudfront.house.gov/bioguide/"
+        f"photo/{bioguide_id[0].upper()}/{bioguide_id}.jpg"
+    )
+    return uio_url + "|" + cf_url  # send both, frontend will try in order
+
 def update_photo_url(session: Session, politician_id: int, bioguide_id: str) -> None:
     """
     Update a politician's photo URL based on their bioguide ID
@@ -63,13 +85,13 @@ def update_photo_url(session: Session, politician_id: int, bioguide_id: str) -> 
     if not bioguide_id:
         return
         
-    # Construct the photo URL
-    photo_url = f"https://www.congress.gov/img/member/{bioguide_id.lower()}.jpg"
+    # Build the reliable photo URLs
+    photo_urls = build_photo_url(bioguide_id)
     
-    # Update the politician record with both photo URL and bioguide ID
+    # Update the politician record with both photo URLs and bioguide ID
     session.execute(
         text("UPDATE politicians SET photo_url = :url, bioguide_id = :bio_id WHERE id = :pid"),
-        {"url": photo_url, "bio_id": bioguide_id, "pid": politician_id}
+        {"url": photo_urls, "bio_id": bioguide_id, "pid": politician_id}
     )
     session.commit()
 
