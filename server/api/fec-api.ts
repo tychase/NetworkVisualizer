@@ -11,6 +11,7 @@ import axios from 'axios';
 import { db } from '../db';
 import { politicians, politicianAliases, contributions } from '../../shared/schema';
 import { eq, and } from 'drizzle-orm';
+import { storage } from '../storage';
 
 // FEC API Configuration
 const FEC_API_BASE_URL = 'https://api.open.fec.gov/v1';
@@ -284,17 +285,18 @@ export async function importContributionsForPolitician(politicianId: number) {
           : new Date();
         const industry = contribution.contributor_occupation || '';
         
-        // Define contribution data using the proper schema structure
+        // Create contribution using the storage API
+        // This ensures the data formatting is handled properly
         const contributionData = {
           politicianId,
           organization,
           amount: amount.toString(),
-          contributionDate,
+          contributionDate: contributionDate.toISOString().split('T')[0], // Format as YYYY-MM-DD
           industry
         };
         
-        // Add contribution to database
-        await db.insert(contributions).values(contributionData);
+        // Use the storage interface for proper data insertion
+        await storage.createContribution(contributionData);
           
         importedCount++;
       } catch (err) {
