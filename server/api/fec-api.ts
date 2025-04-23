@@ -284,16 +284,17 @@ export async function importContributionsForPolitician(politicianId: number) {
           : new Date();
         const industry = contribution.contributor_occupation || '';
         
-        // Add contribution to database - using proper column field names
-        // The values MUST use the camelCase version of the field names, not the snake_case database version
-        await db.insert(contributions)
-          .values({
-            politicianId: politicianId,
-            organization: organization,
-            amount: amount.toString(),
-            contributionDate: contributionDate,
-            industry: industry
-          });
+        // Define contribution data using the proper schema structure
+        const contributionData = {
+          politicianId,
+          organization,
+          amount: amount.toString(),
+          contributionDate,
+          industry
+        };
+        
+        // Add contribution to database
+        await db.insert(contributions).values(contributionData);
           
         importedCount++;
       } catch (err) {
