@@ -1,0 +1,120 @@
+🚀 Automated Data Pipeline Setup Prompt (Replit)
+Project Context: We're creating an automated data ingestion pipeline for our political transparency web app. We will collect and process data directly from official U.S. government sources to avoid reliance on third-party APIs.
+
+Pipeline Goals:
+Automatically fetch data regularly from government sources:
+
+Campaign Finance Data: FEC bulk data
+
+Congressional Voting & Bill Data: Congress.gov/GovInfo bulk data
+
+Stock Transactions: Congressional STOCK Act disclosures
+
+Parse and store data in a structured database (PostgreSQL recommended)
+
+Expose data via FastAPI endpoints for frontend consumption (React.js frontend)
+
+✅ Data Sources and Access Methods:
+1. FEC Campaign Finance Data
+Data URL: https://www.fec.gov/data/browse-data/?tab=bulk-data
+
+Data Format: Bulk CSV files
+
+Automation:
+
+Regularly download CSV files.
+
+Parse CSV using Python (pandas).
+
+Store parsed data in PostgreSQL.
+
+2. Congressional Votes and Bill Data (Congress.gov/GovInfo)
+Data URL: https://www.congress.gov/developers
+
+Bulk Downloads: https://www.govinfo.gov/bulkdata
+
+Data Format: XML/JSON
+
+Automation:
+
+Regularly fetch XML or JSON bulk files.
+
+Parse using Python (xml.etree.ElementTree, BeautifulSoup, or lxml).
+
+Store structured data in PostgreSQL.
+
+3. Congressional STOCK Act Disclosures
+Data URLs:
+
+House: https://disclosures-clerk.house.gov/PublicDisclosure/FinancialDisclosure
+
+Senate: https://efdsearch.senate.gov
+
+Data Format: PDF files (OCR required), structured HTML reports
+
+Automation:
+
+Download PDFs or scrape structured HTML reports.
+
+Extract structured data using Python libraries (PyMuPDF, pdfplumber, BeautifulSoup).
+
+Store parsed data in PostgreSQL.
+
+🛠️ Technical Implementation:
+Please create the following structure clearly and neatly in the Replit environment:
+
+text
+Copy
+Edit
+NetworkVisualizer/
+├── backend/
+│   ├── fec_pipeline.py (FEC bulk CSV pipeline)
+│   ├── congress_pipeline.py (Congress.gov XML/JSON pipeline)
+│   ├── stock_pipeline.py (Congressional STOCK Act pipeline)
+│   ├── database.py (PostgreSQL database connection setup)
+│   └── api.py (FastAPI endpoints)
+├── frontend/
+│   └── React app (already set up, consuming backend APIs)
+├── requirements.txt (Python dependencies clearly defined)
+└── README.md (clear documentation on running pipelines)
+🐍 Recommended Python Tools/Libraries:
+pandas (CSV data handling)
+
+requests (file downloads)
+
+BeautifulSoup, lxml (HTML/XML parsing)
+
+PyMuPDF or pdfplumber (PDF parsing)
+
+SQLAlchemy, psycopg2 (PostgreSQL connection)
+
+FastAPI, uvicorn (backend API)
+
+🔄 Automation & Scheduling:
+Set up scripts to run regularly (e.g., daily) using Replit’s cron jobs or GitHub Actions (provide a clear example).
+
+Example Cron Job:
+
+bash
+Copy
+Edit
+0 0 * * * python backend/fec_pipeline.py
+0 1 * * * python backend/congress_pipeline.py
+0 2 * * * python backend/stock_pipeline.py
+📌 Deliverables (First Milestone):
+Functional pipelines to fetch and parse data from these three sources.
+
+Parsed data stored cleanly in PostgreSQL database.
+
+Basic FastAPI endpoints to serve this data.
+
+Please clearly document each step in the pipeline scripts.
+
+Ready to get started!
+
+
+
+
+
+
+
