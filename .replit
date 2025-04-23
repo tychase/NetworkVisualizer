@@ -1,10 +1,10 @@
-modules = ["nodejs-20", "web", "postgresql-16", "python-3.11"]
+modules = ["nodejs-20", "web", "postgresql-16", "python-3.11", "python3"]
 run = "npm run dev"
 hidden = [".config", ".git", "generated-icon.png", "node_modules", "dist"]
 
 [nix]
 channel = "stable-24_05"
-packages = ["freetype", "glibcLocales", "gumbo", "harfbuzz", "jbig2dec", "jq", "libjpeg_turbo", "mupdf", "openjpeg", "swig", "xcbuild", "xcodebuild", "zlib"]
+packages = ["freetype", "glibcLocales", "gumbo", "harfbuzz", "jbig2dec", "jq", "libjpeg_turbo", "mupdf", "openjpeg", "redis", "swig", "xcbuild", "xcodebuild", "zlib"]
 
 [deployment]
 deploymentTarget = "autoscale"
