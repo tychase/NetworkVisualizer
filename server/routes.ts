@@ -9,10 +9,14 @@ import {
   insertContributionSchema,
   insertStockTransactionSchema,
 } from "@shared/schema";
+import pipelineRoutes from "./routes/pipeline-routes";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Create HTTP server
   const server = createServer(app);
+  
+  // Register pipeline routes
+  app.use('/api/pipelines', pipelineRoutes);
 
   // Politicians endpoints
   app.get("/api/politicians", async (req, res) => {
