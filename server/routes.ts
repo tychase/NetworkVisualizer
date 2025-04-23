@@ -653,6 +653,131 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Failed to get top contributors" });
     }
   });
+  
+  // Timeline endpoint - aggregates votes, contributions, and stock transactions by date
+  app.get("/api/politicians/:id/timeline", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ message: "Invalid politician ID" });
+      }
+      
+      // Check if politician exists
+      const politician = await storage.getPolitician(id);
+      if (!politician) {
+        return res.status(404).json({ message: "Politician not found" });
+      }
+      
+      // Get data for timeline
+      const votes = await storage.getVotesByPolitician(id);
+      const contributions = await storage.getContributionsByPolitician(id);
+      const stockTransactions = await storage.getStockTransactionsByPolitician(id);
+      
+      // Transform each data type to a common timeline event format
+      const timelineEvents = [
+        // Map votes to timeline events
+        ...votes.map(vote => ({
+          type: 'vote',
+          date: vote.voteDate,
+          politician: {
+            id: politician.id,
+            firstName: politician.firstName,
+            lastName: politician.lastName,
+            party: politician.party,
+            state: politician.state
+          },
+          data: {
+            billName: vote.billName,
+            billDescription: vote.billDescription,
+            voteResult: vote.voteResult
+          }
+        })),
+        
+        // Map contributions to timeline events
+        ...contributions.map(contribution => ({
+          type: 'contribution',
+          date: contribution.contributionDate,
+          politician: {
+            id: politician.id,
+            firstName: politician.firstName,
+            lastName: politician.lastName,
+            party: politician.party,
+            state: politician.state
+          },
+          data: {
+            organization: contribution.organization,
+            amount: contribution.amount,
+            industry: contribution.industry
+          }
+        })),
+        
+        // Map stock transactions to timeline events
+        ...stockTransactions.map(transaction => ({
+          type: 'stock_transaction',
+          date: transaction.tradeDate,
+          politician: {
+            id: politician.id,
+            firstName: politician.firstName,
+            lastName: politician.lastName,
+            party: politician.party,
+            state: politician.state
+          },
+          data: {
+            stockName: transaction.stockName,
+            tradeType: transaction.tradeType,
+            amount: transaction.amount,
+            relatedBill: transaction.relatedBill,
+            potentialConflict: transaction.potentialConflict
+          }
+        }))
+      ];
+      
+      // Sort timeline events by date (newest first by default)
+      const sortDirection = req.query.sort === 'asc' ? 1 : -1;
+      timelineEvents.sort((a, b) => {
+        const dateA = new Date(a.date).getTime();
+        const dateB = new Date(b.date).getTime();
+        return sortDirection * (dateB - dateA);
+      });
+      
+      // Apply pagination if requested
+      const page = req.query.page ? parseInt(String(req.query.page)) : 1;
+      const limit = req.query.limit ? parseInt(String(req.query.limit)) : 50;
+      const startIndex = (page - 1) * limit;
+      const endIndex = page * limit;
+      
+      // Prepare pagination metadata
+      const paginationMeta = {
+        totalItems: timelineEvents.length,
+        itemsPerPage: limit,
+        currentPage: page,
+        totalPages: Math.ceil(timelineEvents.length / limit)
+      };
+      
+      // Return paginated results
+      const paginatedEvents = timelineEvents.slice(startIndex, endIndex);
+      
+      res.json({
+        politician: {
+          id: politician.id,
+          firstName: politician.firstName,
+          lastName: politician.lastName,
+          party: politician.party,
+          state: politician.state
+        },
+        timeline: paginatedEvents,
+        pagination: paginationMeta,
+        summary: {
+          totalVotes: votes.length,
+          totalContributions: contributions.length,
+          totalStockTransactions: stockTransactions.length
+        }
+      });
+    } catch (error) {
+      console.error(`Error fetching timeline for politician with ID ${req.params.id}:`, error);
+      res.status(500).json({ message: "Failed to fetch timeline data" });
+    }
+  });
 
   const httpServer = createServer(app);
 
