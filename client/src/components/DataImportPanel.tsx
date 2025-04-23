@@ -1,24 +1,20 @@
 import React, { useState } from 'react';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { apiRequest } from '@/lib/queryClient';
+import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
+import { Database, FileText, RefreshCw, Download, AlertCircle, CheckCircle } from 'lucide-react';
 import { Spinner } from '@/components/ui/spinner';
-import { AlertCircle, CheckCircle, Download, Database, FileText, RefreshCw } from 'lucide-react';
+import { apiRequest } from '@/lib/queryClient';
 
-/**
- * Panel to trigger data imports from various sources
- */
 export function DataImportPanel() {
-  const [activeTab, setActiveTab] = useState('fec');
-  const [isImporting, setIsImporting] = useState(false);
+  const [activeTab, setActiveTab] = useState<string>('fec');
+  const [isImporting, setIsImporting] = useState<boolean>(false);
   const [importStatus, setImportStatus] = useState<{
     success?: boolean;
     message?: string;
   }>({});
-
-  // Trigger data pipeline import
+  
   const startImport = async (pipeline: string) => {
     try {
       setImportStatus({});

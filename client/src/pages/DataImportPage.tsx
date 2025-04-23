@@ -1,82 +1,99 @@
 import React from 'react';
 import { PageHeader } from '@/components/PageHeader';
+import { Container } from '@/components/Container';
 import { DataImportPanel } from '@/components/DataImportPanel';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { PoliticiansTable } from '@/components/PoliticiansTable';
-import { useQuery } from '@tanstack/react-query';
+import { Button } from '@/components/ui/button';
+import { DatabaseIcon, RefreshCw } from 'lucide-react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { Politician } from '@shared/schema';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { Card } from '@/components/ui/card';
 
 export function DataImportPage() {
-  // Fetch politicians to display current data
-  const { data: politicians = [], isLoading } = useQuery({
+  const queryClient = useQueryClient();
+  
+  // Fetch all politicians
+  const {
+    data: politicians,
+    isLoading,
+    isError,
+    error
+  } = useQuery<Politician[]>({
     queryKey: ['/api/politicians'],
   });
-
+  
+  // Check backend status
+  const {
+    data: backendStatus,
+    isLoading: isLoadingStatus,
+    refetch: refetchStatus
+  } = useQuery<{status: string; message: string}>({
+    queryKey: ['/api/pipelines/status'],
+    refetchInterval: 30000, // Refresh every 30 seconds
+    retry: 1, // Only retry once
+  });
+  
+  // Backend status component
+  const renderBackendStatus = () => {
+    if (isLoadingStatus) {
+      return (
+        <div className="flex items-center text-sm text-gray-500">
+          <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
+          Checking pipeline backend status...
+        </div>
+      );
+    }
+    
+    if (backendStatus?.status === 'ok') {
+      return (
+        <div className="flex items-center text-sm text-green-600">
+          <div className="h-2 w-2 bg-green-500 rounded-full mr-2"></div>
+          Pipeline backend is online
+        </div>
+      );
+    }
+    
+    return (
+      <div className="flex items-center text-sm text-orange-600">
+        <div className="h-2 w-2 bg-orange-500 rounded-full mr-2"></div>
+        Pipeline backend is offline
+        <Button 
+          variant="ghost" 
+          size="sm" 
+          className="ml-2 h-6 text-xs" 
+          onClick={() => refetchStatus()}
+        >
+          <RefreshCw className="h-3 w-3 mr-1" />
+          Retry
+        </Button>
+      </div>
+    );
+  };
+  
   return (
-    <div className="container mx-auto p-4 max-w-6xl">
-      <PageHeader 
-        title="Data Management" 
-        description="Import and manage real politician data from official sources" 
+    <Container>
+      <PageHeader
+        title="Data Management"
+        description="Import and manage real-world politician data"
+        actions={
+          <div className="flex items-center">
+            {renderBackendStatus()}
+          </div>
+        }
       />
       
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-        <DataImportPanel />
-        
-        <Card>
-          <CardHeader>
-            <CardTitle>About Real Data Import</CardTitle>
-            <CardDescription>
-              How data is sourced and processed
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <h3 className="font-semibold">FEC Data</h3>
-              <p className="text-sm text-gray-600">
-                Campaign finance data is sourced directly from the Federal Election Commission's 
-                official bulk data files. This includes politician information, committee details, 
-                and campaign contributions.
-              </p>
-            </div>
-            
-            <div>
-              <h3 className="font-semibold">Congressional Voting Records</h3>
-              <p className="text-sm text-gray-600">
-                Voting records are obtained from Congress.gov's official API and bulk data. 
-                This includes bills, votes, and voting positions for each politician.
-              </p>
-            </div>
-            
-            <div>
-              <h3 className="font-semibold">Stock Transactions</h3>
-              <p className="text-sm text-gray-600">
-                Stock transactions are gathered from official STOCK Act disclosures filed 
-                by members of Congress, as required by law. These documents reveal what 
-                stocks politicians are buying and selling.
-              </p>
-            </div>
-            
-            <div className="border-t pt-4 mt-4">
-              <p className="text-sm text-gray-600">
-                <strong>Note:</strong> All data processing happens in the background. You can 
-                continue using the application while imports run. Refresh the page to see 
-                newly imported data.
-              </p>
-            </div>
-          </CardContent>
-        </Card>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+        <div className="lg:col-span-1">
+          <DataImportPanel />
+        </div>
+        <div className="lg:col-span-2">
+          <Card className="p-6">
+            <h2 className="text-xl font-bold mb-4">Politicians Database</h2>
+            <PoliticiansTable politicians={politicians as Politician[]} isLoading={isLoading} />
+          </Card>
+        </div>
       </div>
-      
-      <Card className="mb-6">
-        <CardHeader>
-          <CardTitle>Current Politicians</CardTitle>
-          <CardDescription>
-            Politicians currently in the database ({politicians.length})
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <PoliticiansTable politicians={politicians} isLoading={isLoading} />
-        </CardContent>
-      </Card>
-    </div>
+    </Container>
   );
 }
