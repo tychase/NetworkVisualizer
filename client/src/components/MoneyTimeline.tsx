@@ -67,6 +67,8 @@ export function MoneyTimeline({ politicianId }: MoneyTimelineProps) {
   const { data, isLoading, error } = useQuery<TimelineResponse>({
     queryKey: [`/api/politicians/${politicianId}/timeline`, { page, sort: sortOrder }],
     enabled: !!politicianId,
+    retry: 1, // Limit retries to avoid excessive API calls if the endpoint is failing
+    refetchOnWindowFocus: false, // Don't refetch when window regains focus to reduce unnecessary API calls
   });
 
   // Toggle expanded state for an event

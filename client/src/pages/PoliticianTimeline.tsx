@@ -105,6 +105,31 @@ export default function PoliticianTimeline() {
     );
   }
 
+  // Make sure we have politician data before rendering
+  if (!politician) {
+    return (
+      <Container>
+        <div className="py-6">
+          <Button variant="ghost" onClick={handleBack} className="mb-4">
+            <ArrowLeft className="mr-2 h-4 w-4" /> Back to Politicians
+          </Button>
+          
+          <Card className="w-full">
+            <CardHeader>
+              <CardTitle>Politician Not Found</CardTitle>
+              <CardDescription>
+                We couldn't find this politician in our database.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button onClick={handleBack}>Return to Politicians List</Button>
+            </CardContent>
+          </Card>
+        </div>
+      </Container>
+    );
+  }
+  
   return (
     <Container>
       <div className="py-6">
