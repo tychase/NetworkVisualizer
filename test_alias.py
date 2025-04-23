@@ -76,11 +76,8 @@ def test_alias_functionality():
             update_photo_url(session, pid, bioguide_id)
             
             # Update FEC candidate ID
-            session.execute(
-                text("UPDATE politicians SET fec_candidate_id = :fec_id WHERE id = :pid"),
-                {"fec_id": fec_id, "pid": pid}
-            )
-            session.commit()
+            from backend.utils import update_fec_candidate_id
+            update_fec_candidate_id(session, pid, fec_id)
             print(f"Updated fec_candidate_id for politician {pid}")
         
         # Verify aliases were added

@@ -66,9 +66,28 @@ def update_photo_url(session: Session, politician_id: int, bioguide_id: str) -> 
     # Construct the photo URL
     photo_url = f"https://www.congress.gov/img/member/{bioguide_id.lower()}.jpg"
     
+    # Update the politician record with both photo URL and bioguide ID
+    session.execute(
+        text("UPDATE politicians SET photo_url = :url, bioguide_id = :bio_id WHERE id = :pid"),
+        {"url": photo_url, "bio_id": bioguide_id, "pid": politician_id}
+    )
+    session.commit()
+
+def update_fec_candidate_id(session: Session, politician_id: int, fec_id: str) -> None:
+    """
+    Update a politician's FEC candidate ID
+    
+    Args:
+        session: SQLAlchemy session
+        politician_id: The politician's ID in our database
+        fec_id: The FEC candidate ID
+    """
+    if not fec_id:
+        return
+        
     # Update the politician record
     session.execute(
-        text("UPDATE politicians SET photo_url = :url WHERE id = :pid"),
-        {"url": photo_url, "pid": politician_id}
+        text("UPDATE politicians SET fec_candidate_id = :fec_id WHERE id = :pid"),
+        {"fec_id": fec_id, "pid": politician_id}
     )
     session.commit()

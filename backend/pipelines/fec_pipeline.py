@@ -20,7 +20,7 @@ from typing import Dict, Optional, Tuple
 
 from backend.database import engine, SessionLocal, Base
 from shared.schema import politicians, contributions, pipelineRuns
-from backend.utils import upsert_alias
+from backend.utils import upsert_alias, update_fec_candidate_id
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, 
