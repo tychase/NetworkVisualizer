@@ -119,7 +119,7 @@ export async function runFecDataImport(pipelineId: string, skipContributions = f
       // Failure
       await updatePipelineStatus(pipelineId, 'failed', 0, {
         message: 'FEC data import failed',
-        error: result.message
+        error: result.message || 'Unknown error'
       });
     }
     

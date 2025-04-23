@@ -215,8 +215,7 @@ export async function importPoliticiansFromFec() {
               .values({
                 politicianId: newPolitician[0].id,
                 source: 'fec',
-                externalId: member.candidate_id,
-                createdAt: new Date()
+                externalId: member.candidate_id
               });
             
             importedCount++;
@@ -292,8 +291,7 @@ export async function importContributionsForPolitician(politicianId: number) {
             organization,
             amount,
             contributionDate,
-            industry,
-            createdAt: new Date()
+            industry
           });
           
         importedCount++;
