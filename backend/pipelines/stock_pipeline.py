@@ -17,6 +17,7 @@ from sqlalchemy import select, insert
 
 from backend.database import engine, SessionLocal, Base
 from shared.schema import politicians, stockTransactions
+from backend.utils import upsert_alias
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, 
@@ -117,6 +118,7 @@ def extract_stock_transactions_from_pdf(pdf_path):
         transactions = []
         politician_name = None
         filing_date = None
+        house_fd_id = None
         
         with pdfplumber.open(pdf_path) as pdf:
             # Extract text from each page
@@ -137,6 +139,12 @@ def extract_stock_transactions_from_pdf(pdf_path):
                             filing_date = datetime.strptime(date_match.group(1), '%m/%d/%Y').date()
                         except:
                             filing_date = datetime.now().date()
+                
+                # Extract House Financial Disclosure ID (usually on first page)
+                if i == 0 and not house_fd_id:
+                    id_match = re.search(r'ID:\s*([A-Z0-9-]+)', text, re.IGNORECASE)
+                    if id_match:
+                        house_fd_id = id_match.group(1).strip()
                 
                 # Look for transaction tables
                 # This requires pattern matching based on the specific PDF format
@@ -191,7 +199,8 @@ def extract_stock_transactions_from_pdf(pdf_path):
                                 'trade_type': trade_type,
                                 'amount': amount,
                                 'related_bill': None,  # Would need additional logic to determine related bills
-                                'potential_conflict': False  # Would need additional logic to determine conflicts
+                                'potential_conflict': False,  # Would need additional logic to determine conflicts
+                                'house_fd_id': house_fd_id  # Add House Financial Disclosure ID
                             })
                         
                         except Exception as e:
@@ -282,6 +291,10 @@ def save_transactions_to_database(transactions):
                             potentialConflict=transaction['potential_conflict']
                         )
                     )
+                    
+                    # Store House Financial Disclosure ID as alias if available
+                    if 'house_fd_id' in transaction and transaction['house_fd_id']:
+                        upsert_alias(db, politician_id, 'house_fd', transaction['house_fd_id'])
                     
                     transactions_inserted += 1
             
