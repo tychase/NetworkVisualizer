@@ -11,6 +11,7 @@ export const politicians = pgTable("politicians", {
   state: text("state").notNull(),
   party: text("party").notNull(),
   profileImage: text("profile_image"),
+  photoUrl: text("photo_url"),
   // Add canonical IDs from external data sources
   fecCandidateId: text("fec_candidate_id"),
   bioguideId: text("bioguide_id"), // Congress API canonical ID
@@ -107,12 +108,12 @@ export const insertPipelineRunSchema = createInsertSchema(pipelineRuns).omit({
   id: true,
 });
 
-// Politician alias table to handle different name formats across data sources
+// Politician alias table to handle external IDs across data sources
 export const politicianAliases = pgTable("politician_aliases", {
   id: serial("id").primaryKey(),
   politicianId: integer("politician_id").references(() => politicians.id).notNull(),
-  aliasName: text("alias_name").notNull(),
-  source: text("source").notNull(), // fec, congress, stockact, etc.
+  source: text("source").notNull(), // 'bioguide' / 'fec' / 'house_fd'
+  externalId: text("external_id").notNull(),
 });
 
 export const insertPoliticianAliasSchema = createInsertSchema(politicianAliases).omit({
