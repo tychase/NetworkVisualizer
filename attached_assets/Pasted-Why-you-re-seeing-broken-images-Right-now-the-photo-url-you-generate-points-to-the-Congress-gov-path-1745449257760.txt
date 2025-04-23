@@ -1,0 +1,73 @@
+Why you’re seeing broken images
+Right now the photo_url you generate points to the Congress.gov path
+https://www.congress.gov/img/member/<BIOGUIDE>.jpg.
+That CDN only has current members and the image set isn’t 100 % complete, so many requests return 404, which React then shows as a broken-image icon.
+
+Two fast, reliable sources of member photos
+
+Source	Coverage	URL pattern
+UnitedStates-io image mirror	Every member from the 93rd Congress onward (House & Senate, current and historical)	https://theunitedstates.io/images/congress/450x550/{BIOGUIDE}.jpg
+Biographical Directory cloudfront	Same canonical photos Congress.gov uses, but on a predictable path	https://bioguide-cloudfront.house.gov/bioguide/photo/{firstLetter}/{BIOGUIDE}.jpg
+Drop-in backend fix
+python
+Copy
+Edit
+# backend/utils/photos.py
+def build_photo_url(bioguide_id: str) -> str:
+    # 1️⃣ primary: open-source unitedstates.io mirror
+    uio_url = f"https://theunitedstates.io/images/congress/450x550/{bioguide_id}.jpg"
+    # 2️⃣ fallback: official bioguide cloudfront
+    cf_url  = (
+        f"https://bioguide-cloudfront.house.gov/bioguide/"
+        f"photo/{bioguide_id[0].upper()}/{bioguide_id}.jpg"
+    )
+    return uio_url + "|" + cf_url          # send both, frontend will try in order
+Call this when you upsert a Politician:
+
+python
+Copy
+Edit
+pol.photo_urls = build_photo_url(bioguide_id)
+session.add(pol)
+Tiny React helper (tries both, then shows placeholder)
+tsx
+Copy
+Edit
+function Portrait({ urls }:{ urls:string }) {
+  const [src, setSrc] = useState(urls.split('|')[0]);
+
+  const handleError = () => {
+    const [, fallback] = urls.split('|');
+    if (fallback && src !== fallback) setSrc(fallback);
+    else setSrc('/img/placeholder.png');   // local silhouette asset
+  };
+
+  return (
+    <img
+      src={src}
+      onError={handleError}
+      className="h-16 w-16 rounded-full object-cover bg-gray-200"
+      alt="Member portrait"
+    />
+  );
+}
+Result:
+
+if the first URL 404s the onError fires and swaps to the second;
+
+if that one also fails you land on a neutral placeholder, so no browser “broken image” icon ever appears.
+
+One-liner test
+bash
+Copy
+Edit
+curl -I https://theunitedstates.io/images/congress/450x550/A000360.jpg | head -n1
+# HTTP/2 200
+Run the same for a few other bioguide IDs and you’ll see >95 % success.
+
+After you push this:
+Flush the React build cache (or hard-reload) so new Portrait runs.
+
+Hit /politicians – images should load almost instantly, with graceful fallback for the handful that truly don’t exist.
+
+Let me know if any member IDs still slip through—we can add a third fallback or store a has_photo flag in the DB.
