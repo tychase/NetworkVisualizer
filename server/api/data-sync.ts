@@ -6,6 +6,7 @@ import { Request, Response } from 'express';
 import { importAllFecData } from './fec-api';
 import { db } from '../db';
 import { pipelineRuns } from '../../shared/schema';
+import { eq } from 'drizzle-orm';
 
 // Track pipeline runs in memory for status updates
 const activePipelines: Record<string, any> = {};
@@ -23,12 +24,10 @@ function generatePipelineId(type: string): string {
 async function createPipelineRun(pipelineId: string, pipelineType: string) {
   try {
     await db.insert(pipelineRuns).values({
-      id: pipelineId,
-      pipelineType,
+      pipelineName: pipelineType,
       status: 'running',
-      progress: 0,
-      startTime: new Date(),
-      createdAt: new Date()
+      startedAt: new Date(),
+      notes: JSON.stringify({ id: pipelineId })
     });
     
     // Also track in memory for faster access
@@ -58,16 +57,26 @@ async function updatePipelineStatus(
   details: any = {}
 ) {
   try {
-    // Update in database
-    await db.update(pipelineRuns)
-      .set({
-        status,
-        progress,
-        completionTime: status === 'completed' ? new Date() : undefined,
-        updatedAt: new Date(),
-        details: JSON.stringify(details)
-      })
-      .where(eq(pipelineRuns.id, pipelineId));
+    // Write progress to database through a select + notes update as a workaround
+    // Using the notes field to store additional data since we're working with an existing schema
+    const pipelineRun = await db.query.pipelineRuns.findFirst({
+      where: eq(pipelineRuns.notes, JSON.stringify({ id: pipelineId }))
+    });
+    
+    if (pipelineRun) {
+      await db.update(pipelineRuns)
+        .set({
+          status,
+          endedAt: status === 'completed' ? new Date() : undefined,
+          rowsProcessed: Math.round(progress * 100),
+          notes: JSON.stringify({ 
+            id: pipelineId,
+            progress,
+            details
+          })
+        })
+        .where(eq(pipelineRuns.id, pipelineRun.id));
+    }
     
     // Update in memory tracking
     if (activePipelines[pipelineId]) {
@@ -189,26 +198,54 @@ export async function handleGetPipelineStatus(req: Request, res: Response) {
       });
     }
     
-    // If not in memory, check database
-    const pipelineRun = await db.query.pipelineRuns.findFirst({
-      where: eq(pipelineRuns.id, pipelineId)
-    });
+    // If not in memory, try to find in database by notes field containing the ID
+    const allPipelineRuns = await db.query.pipelineRuns.findMany();
     
-    if (!pipelineRun) {
+    // Find a run with notes containing our ID
+    let matchingRun = null;
+    for (const run of allPipelineRuns) {
+      if (run.notes) {
+        try {
+          const notes = JSON.parse(run.notes);
+          if (notes.id === pipelineId) {
+            matchingRun = run;
+            break;
+          }
+        } catch (error) {
+          // Skip if not valid JSON
+        }
+      }
+    }
+    
+    if (!matchingRun) {
       return res.status(404).json({
         status: 'error',
         message: `Pipeline run with ID ${pipelineId} not found`
       });
     }
     
+    // Extract details from notes field
+    let progress = 0;
+    let details = {};
+    
+    if (matchingRun.notes) {
+      try {
+        const notes = JSON.parse(matchingRun.notes);
+        progress = notes.progress || 0;
+        details = notes.details || {};
+      } catch (error) {
+        // Use defaults if parsing fails
+      }
+    }
+    
     return res.status(200).json({
-      status: pipelineRun.status,
-      message: `Pipeline ${pipelineRun.pipelineType} is ${pipelineRun.status}`,
-      pipeline: pipelineRun.pipelineType,
-      progress: pipelineRun.progress,
-      startTime: pipelineRun.startTime?.toISOString(),
-      completionTime: pipelineRun.completionTime?.toISOString(),
-      details: pipelineRun.details ? JSON.parse(pipelineRun.details) : {}
+      status: matchingRun.status,
+      message: `Pipeline ${matchingRun.pipelineName} is ${matchingRun.status}`,
+      pipeline: matchingRun.pipelineName,
+      progress: progress,
+      startTime: matchingRun.startedAt?.toISOString(),
+      completionTime: matchingRun.endedAt?.toISOString(),
+      details: details
     });
   } catch (error) {
     console.error(`Error getting pipeline status for ${req.params.id}:`, error);

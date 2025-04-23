@@ -192,7 +192,7 @@ export async function importPoliticiansFromFec() {
               lastName,
               party,
               state,
-              updatedAt: new Date()
+              fecCandidateId: member.candidate_id
             })
             .where(eq(politicians.id, existingAlias.politicianId));
             
@@ -205,8 +205,7 @@ export async function importPoliticiansFromFec() {
               lastName,
               party,
               state,
-              createdAt: new Date(),
-              updatedAt: new Date()
+              fecCandidateId: member.candidate_id
             })
             .returning();
 

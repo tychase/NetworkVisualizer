@@ -2,25 +2,25 @@
  * Routes for data pipeline operations
  */
 import { Router } from 'express';
+import { checkPipelineBackendStatus } from '../api/pipelines';
 import {
-  triggerFecPipeline,
-  triggerCongressPipeline,
-  triggerStockPipeline,
-  getPipelineStatus,
-  checkPipelineBackendStatus
-} from '../api/pipelines';
+  handleTriggerFecPipeline,
+  handleTriggerCongressPipeline,
+  handleTriggerStockPipeline,
+  handleGetPipelineStatus
+} from '../api/data-sync';
 
 const router = Router();
 
 // Check if the pipeline backend is running
 router.get('/status', checkPipelineBackendStatus);
 
-// Trigger different pipelines
-router.post('/fec', triggerFecPipeline);
-router.post('/congress', triggerCongressPipeline);
-router.post('/stock', triggerStockPipeline);
+// Trigger different pipelines with real FEC API implementation
+router.post('/fec', handleTriggerFecPipeline);
+router.post('/congress', handleTriggerCongressPipeline);
+router.post('/stock', handleTriggerStockPipeline);
 
 // Get status of a specific pipeline run
-router.get('/:id/status', getPipelineStatus);
+router.get('/:id/status', handleGetPipelineStatus);
 
 export default router;
