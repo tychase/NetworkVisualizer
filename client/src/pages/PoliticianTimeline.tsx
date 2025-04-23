@@ -1,12 +1,27 @@
 import { useEffect, useState } from "react";
 import { useParams, useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
-import { Container } from "@/components/Container";
 import { MoneyTimeline } from "@/components/MoneyTimeline";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { twMerge } from "tailwind-merge";
+import { clsx } from "clsx";
+
+// Helper function from utils
+function cn(...inputs: any[]) {
+  return twMerge(clsx(inputs));
+}
+
+// Container component inline since there might be issues importing it
+function Container({ children, className }: { children: React.ReactNode; className?: string }) {
+  return (
+    <div className={cn("container mx-auto px-4 sm:px-6 lg:px-8", className)}>
+      {children}
+    </div>
+  );
+}
 
 // Define politician type
 interface Politician {
@@ -21,7 +36,8 @@ interface Politician {
 export default function PoliticianTimeline() {
   const params = useParams<{ id: string }>();
   const [, setLocation] = useLocation();
-  const politicianId = parseInt(params.id);
+  // Default to 1 if no ID is provided to prevent NaN issues
+  const politicianId = params && params.id ? parseInt(params.id) : 1;
 
   // Fetch politician details
   const { data: politician, isLoading, error } = useQuery<Politician>({
