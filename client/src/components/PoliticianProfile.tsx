@@ -8,6 +8,7 @@ import ContributorsChart from './ContributorsChart';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Calendar } from 'lucide-react';
+import Portrait from './Portrait';
 
 interface PoliticianProfileProps {
   politician: Politician;
@@ -58,15 +59,10 @@ const PoliticianProfile: React.FC<PoliticianProfileProps> = ({ politician }) => 
       <div className="px-4 py-5 sm:px-6 bg-primary text-white">
         <div className="flex items-center justify-between">
           <div className="flex items-center">
-            <img 
-              src={politician.photoUrl || politician.profileImage || `https://www.congress.gov/img/member/${politician.bioguideId}.jpg`}
+            <Portrait 
+              urls={politician.photoUrl || politician.profileImage || `/img/placeholder.svg`}
               alt={`${politician.firstName} ${politician.lastName}`} 
-              className="h-12 w-12 rounded-full object-cover" 
-              onError={(e) => {
-                const target = e.target as HTMLImageElement;
-                // Use a simple default avatar if the image fails to load
-                target.src = "https://www.congress.gov/img/member/default.jpg";
-              }}
+              className="h-12 w-12 rounded-full object-cover"
             />
             <div className="ml-4">
               <h3 className="text-lg font-medium text-white">

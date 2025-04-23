@@ -3,6 +3,7 @@ import { Link } from 'wouter';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Calendar, DollarSign, TrendingUp } from 'lucide-react';
+import Portrait from './Portrait';
 
 interface PoliticianCardProps {
   politician: Politician;
@@ -52,15 +53,10 @@ const PoliticianCard: React.FC<PoliticianCardProps> = ({
     >
       <div className="px-4 py-5 sm:p-6">
         <div className="flex items-center">
-          <img 
-            src={politician.photoUrl || politician.profileImage || `https://www.congress.gov/img/member/${politician.bioguideId}.jpg`} 
+          <Portrait 
+            urls={politician.photoUrl || politician.profileImage || `/img/placeholder.svg`}
             alt={`${politician.firstName} ${politician.lastName}`} 
             className="h-16 w-16 rounded-full object-cover"
-            onError={(e) => {
-              const target = e.target as HTMLImageElement;
-              // Use a simple default avatar if the image fails to load
-              target.src = "https://www.congress.gov/img/member/default.jpg";
-            }}
           />
           <div className="ml-4">
             <h3 className="text-lg font-medium text-dark-900">
