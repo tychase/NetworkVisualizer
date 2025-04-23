@@ -351,7 +351,7 @@ def run_congress_pipeline(congress_number=117, session=1):
                                 lastName=last_name,
                                 state=member['state'],
                                 party=member['party'],
-                                bioguideId=bioguide_id,
+                                bioguideId=None,  # Will be set with the utility function
                                 profileImage=None
                             )
                         )

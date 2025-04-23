@@ -367,13 +367,18 @@ def process_candidate_data(file_path: str, run_id: int) -> bool:
                     
                     full_name = f"{first_name} {last_name}".lower()
                     
-                    # Check if politician already exists
-                    if full_name in existing_map:
-                        # Politician already exists, could update here if needed
-                        continue
-                    
                     # Get FEC candidate ID
                     fec_candidate_id = row['candidate_id'] if not pd.isna(row['candidate_id']) else None
+                    
+                    # Check if politician already exists
+                    if full_name in existing_map:
+                        # Politician already exists, update FEC ID if needed
+                        politician_id = existing_map[full_name]
+                        if fec_candidate_id:
+                            # Store the FEC candidate ID as alias and update the direct field
+                            upsert_alias(db, politician_id, 'fec', fec_candidate_id)
+                            update_fec_candidate_id(db, politician_id, fec_candidate_id)
+                        continue
                     
                     # Insert new politician
                     result = db.execute(
@@ -382,7 +387,7 @@ def process_candidate_data(file_path: str, run_id: int) -> bool:
                             lastName=last_name,
                             state=row['state'] if not pd.isna(row['state']) else 'Unknown',
                             party=row['party_1'] if not pd.isna(row['party_1']) else 'Unknown',
-                            fecCandidateId=fec_candidate_id,
+                            fecCandidateId=None,  # We'll set this separately with the utility function
                             profileImage=None
                         )
                     )
@@ -391,9 +396,10 @@ def process_candidate_data(file_path: str, run_id: int) -> bool:
                     new_id = result.inserted_primary_key[0]
                     existing_map[full_name] = new_id
                     
-                    # Store the FEC candidate ID as an alias if available
+                    # Store the FEC candidate ID as an alias and direct field if available
                     if fec_candidate_id:
                         upsert_alias(db, new_id, 'fec', fec_candidate_id)
+                        update_fec_candidate_id(db, new_id, fec_candidate_id)
                     
                     rows_inserted += 1
                 
