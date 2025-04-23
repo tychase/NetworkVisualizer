@@ -15,6 +15,7 @@ from bs4 import BeautifulSoup
 
 from backend.database import engine, SessionLocal, Base
 from shared.schema import politicians, votes
+from backend.utils import upsert_alias, update_photo_url
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, 
@@ -312,6 +313,8 @@ def run_congress_pipeline(congress_number=117, session=1):
     
     # Save members to database (if not already there)
     with SessionLocal() as db:
+        members_synced = 0
+        
         for member in members:
             try:
                 # Split name into parts
@@ -322,30 +325,53 @@ def run_congress_pipeline(congress_number=117, session=1):
                     last_name = name_parts[-1]
                     
                     # Check if politician already exists
-                    exists = db.execute(
-                        select(politicians.c.id).where(
+                    existing_politician = db.execute(
+                        select(politicians).where(
                             politicians.c.firstName == first_name,
                             politicians.c.lastName == last_name
                         )
-                    ).scalar_one_or_none()
+                    ).fetchone()
                     
-                    if not exists:
+                    if existing_politician:
+                        politician_id = existing_politician.id
+                    else:
+                        # Extract bioguide ID from URL if available
+                        bioguide_id = None
+                        if 'url' in member and '/member/' in member['url']:
+                            url_parts = member['url'].split('/')
+                            for i, part in enumerate(url_parts):
+                                if part == 'member' and i+1 < len(url_parts):
+                                    bioguide_id = url_parts[i+1]
+                                    break
+                        
                         # Insert into database
-                        db.execute(
+                        result = db.execute(
                             insert(politicians).values(
                                 firstName=first_name,
                                 lastName=last_name,
                                 state=member['state'],
                                 party=member['party'],
+                                bioguideId=bioguide_id,
                                 profileImage=None
                             )
                         )
+                        politician_id = result.inserted_primary_key[0]
+                        members_synced += 1
+                    
+                    # If bioguide ID is available, add alias and update photo URL
+                    if bioguide_id:
+                        # Store the bioguide ID as an alias
+                        upsert_alias(db, politician_id, 'bioguide', bioguide_id)
+                        
+                        # Update the photo URL
+                        update_photo_url(db, politician_id, bioguide_id)
             
             except Exception as e:
                 logger.error(f"Error saving member {member['name']}: {e}")
                 continue
         
         db.commit()
+        logger.info(f"💾 Members synced: {members_synced}")
     
     # Download vote data for House and Senate
     house_downloaded = download_vote_data(congress_number, session, "house")

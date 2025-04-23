@@ -20,6 +20,7 @@ from typing import Dict, Optional, Tuple
 
 from backend.database import engine, SessionLocal, Base
 from shared.schema import politicians, contributions, pipelineRuns
+from backend.utils import upsert_alias
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, 
@@ -371,6 +372,9 @@ def process_candidate_data(file_path: str, run_id: int) -> bool:
                         # Politician already exists, could update here if needed
                         continue
                     
+                    # Get FEC candidate ID
+                    fec_candidate_id = row['candidate_id'] if not pd.isna(row['candidate_id']) else None
+                    
                     # Insert new politician
                     result = db.execute(
                         insert(politicians).values(
@@ -378,6 +382,7 @@ def process_candidate_data(file_path: str, run_id: int) -> bool:
                             lastName=last_name,
                             state=row['state'] if not pd.isna(row['state']) else 'Unknown',
                             party=row['party_1'] if not pd.isna(row['party_1']) else 'Unknown',
+                            fecCandidateId=fec_candidate_id,
                             profileImage=None
                         )
                     )
@@ -385,6 +390,10 @@ def process_candidate_data(file_path: str, run_id: int) -> bool:
                     # Add to existing map to avoid duplicate inserts
                     new_id = result.inserted_primary_key[0]
                     existing_map[full_name] = new_id
+                    
+                    # Store the FEC candidate ID as an alias if available
+                    if fec_candidate_id:
+                        upsert_alias(db, new_id, 'fec', fec_candidate_id)
                     
                     rows_inserted += 1
                 
