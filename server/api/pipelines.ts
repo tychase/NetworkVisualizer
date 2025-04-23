@@ -1,68 +1,152 @@
+/**
+ * API controller for data pipeline operations 
+ * This module communicates with the Python FastAPI backend that runs the data pipelines
+ */
 import axios from 'axios';
-import { Politician } from '@shared/schema';
+import { Request, Response } from 'express';
 
+// Get backend URL from environment variables
 const BACKEND_API_URL = process.env.BACKEND_API_URL || 'http://localhost:8000';
 
-// Interface for pipeline response
-interface PipelineResponse {
-  pipeline: string;
-  status: string;
-  message: string;
+// Check if the FastAPI backend is running
+export async function checkBackendStatus() {
+  try {
+    const response = await axios.get(`${BACKEND_API_URL}/health`);
+    return response.data.status === 'ok';
+  } catch (error) {
+    console.error('Error checking backend status:', error);
+    return false;
+  }
 }
 
 /**
- * Trigger the FEC pipeline to import politician data
+ * Trigger the FEC data pipeline
  */
-export async function triggerFecPipeline(): Promise<PipelineResponse> {
+export async function triggerFecPipeline(req: Request, res: Response) {
   try {
-    const response = await axios.post(`${BACKEND_API_URL}/pipelines/fec`);
-    return response.data;
+    const backendIsUp = await checkBackendStatus();
+    if (!backendIsUp) {
+      return res.status(503).json({
+        status: 'error',
+        message: 'The data pipeline backend service is not available.'
+      });
+    }
+
+    const response = await axios.post(`${BACKEND_API_URL}/api/pipelines/fec`);
+    
+    return res.status(200).json({
+      status: 'success',
+      message: 'FEC data pipeline triggered successfully',
+      pipelineId: response.data.pipelineId
+    });
   } catch (error) {
     console.error('Error triggering FEC pipeline:', error);
-    throw new Error('Failed to trigger FEC data pipeline');
+    return res.status(500).json({
+      status: 'error',
+      message: 'Failed to trigger FEC data pipeline'
+    });
   }
 }
 
 /**
- * Trigger the Congress pipeline to import voting data
+ * Trigger the Congress data pipeline
  */
-export async function triggerCongressPipeline(congressNumber: number = 117, session: number = 1): Promise<PipelineResponse> {
+export async function triggerCongressPipeline(req: Request, res: Response) {
   try {
-    const response = await axios.post(`${BACKEND_API_URL}/pipelines/congress`, {
-      congress_number: congressNumber,
-      session: session
+    const backendIsUp = await checkBackendStatus();
+    if (!backendIsUp) {
+      return res.status(503).json({
+        status: 'error',
+        message: 'The data pipeline backend service is not available.'
+      });
+    }
+
+    const congressNumber = req.query.congressNumber || 117;
+    const session = req.query.session || 1;
+    
+    const response = await axios.post(
+      `${BACKEND_API_URL}/api/pipelines/congress`, 
+      { congress_number: congressNumber, session }
+    );
+    
+    return res.status(200).json({
+      status: 'success',
+      message: 'Congress data pipeline triggered successfully',
+      pipelineId: response.data.pipelineId
     });
-    return response.data;
   } catch (error) {
     console.error('Error triggering Congress pipeline:', error);
-    throw new Error('Failed to trigger Congress data pipeline');
+    return res.status(500).json({
+      status: 'error',
+      message: 'Failed to trigger Congress data pipeline'
+    });
   }
 }
 
 /**
- * Trigger the Stock pipeline to import stock transactions
+ * Trigger the Stock transactions data pipeline
  */
-export async function triggerStockPipeline(): Promise<PipelineResponse> {
+export async function triggerStockPipeline(req: Request, res: Response) {
   try {
-    const response = await axios.post(`${BACKEND_API_URL}/pipelines/stock`);
-    return response.data;
+    const backendIsUp = await checkBackendStatus();
+    if (!backendIsUp) {
+      return res.status(503).json({
+        status: 'error',
+        message: 'The data pipeline backend service is not available.'
+      });
+    }
+
+    const response = await axios.post(`${BACKEND_API_URL}/api/pipelines/stock`);
+    
+    return res.status(200).json({
+      status: 'success',
+      message: 'Stock transaction data pipeline triggered successfully',
+      pipelineId: response.data.pipelineId
+    });
   } catch (error) {
     console.error('Error triggering Stock pipeline:', error);
-    throw new Error('Failed to trigger Stock data pipeline');
+    return res.status(500).json({
+      status: 'error',
+      message: 'Failed to trigger Stock transaction data pipeline'
+    });
   }
 }
 
 /**
- * Import all data for a specific politician
+ * Get pipeline status for a specific pipeline run
  */
-export async function importPoliticianData(politicianId: number, memberId: string): Promise<any> {
+export async function getPipelineStatus(req: Request, res: Response) {
   try {
-    const response = await axios.post(`${BACKEND_API_URL}/politicians/${politicianId}/import`, {
-      member_id: memberId
-    });
-    return response.data;
+    const pipelineId = req.params.id;
+    
+    const response = await axios.get(`${BACKEND_API_URL}/api/pipelines/${pipelineId}/status`);
+    
+    return res.status(200).json(response.data);
   } catch (error) {
-    console.error(`Error importing data for politician ${politicianId}:`, error);
-    throw new Error('Failed to import politician data');
+    console.error(`Error getting pipeline status for ${req.params.id}:`, error);
+    return res.status(500).json({
+      status: 'error',
+      message: 'Failed to get pipeline status'
+    });
+  }
+}
+
+/**
+ * Check overall backend status
+ */
+export async function checkPipelineBackendStatus(req: Request, res: Response) {
+  try {
+    const backendIsUp = await checkBackendStatus();
+    
+    return res.status(200).json({
+      status: backendIsUp ? 'ok' : 'error',
+      message: backendIsUp ? 'Pipeline backend is running' : 'Pipeline backend is not available'
+    });
+  } catch (error) {
+    console.error('Error checking pipeline backend status:', error);
+    return res.status(500).json({
+      status: 'error',
+      message: 'Failed to check pipeline backend status'
+    });
   }
 }
