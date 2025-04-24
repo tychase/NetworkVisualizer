@@ -1,0 +1,135 @@
+🛠 Replit Prompt — Finish & Harden the Data Pipelines
+Context
+Repo: github.com/tychase/NetworkVisualizer
+Key dirs today:
+
+graphql
+Copy
+Edit
+backend/
+ ├─ pipelines/
+ │   ├─ fec_pipeline.py        # bulk CSV – works but not incremental
+ │   ├─ congress_pipeline.py   # XML ingest – missing member upsert
+ │   ├─ stock_pipeline.py      # PDF OCR – placeholder only
+ ├─ models.py                  # SQLAlchemy models incl. PoliticianAlias
+ ├─ database.py
+ ├─ celery.py                  # Celery app already bootstrapped
+ └─ api/
+     └─ routes.py              # FastAPI routes
+Postgres & Redis credentials are injected via Replit Secrets (DATABASE_URL, REDIS_URL).
+
+✅ Goal
+Make each pipeline fully production-ready (incremental, resumable, linked across sources) and expose health/status endpoints so the React UI always shows real, fresh data.
+
+1️⃣ FEC Pipeline (bulk CSV)
+File to modify: backend/pipelines/fec_pipeline.py
+
+Add download_bulk(year) that pulls indiv{yy}.zip using Accept-Encoding: gzip.
+
+Store file checksum in a new pipeline_file_checksums table (create via alembic migration helper at file end).
+
+Skip processing if checksum unchanged.
+
+During parse, insert only rows newer than the latest contribution_date in DB.
+
+Batch-commit every 10 k rows; update PipelineRun.rows_ingested.
+
+2️⃣ Congress Pipeline (votes & members)
+File: backend/pipelines/congress_pipeline.py
+
+Download BILLSTATUS-118-hr.zip, ...-s.zip, ...-hjres.zip, ...-sjres.zip (Congress 118 for now).
+
+Parse cosponsors & actions/action[@roll]/@roll for vote records.
+
+Upsert into Politician table and create PoliticianAlias(source='bioguide', external_id=bioguide_id).
+
+Insert into votes table (bill_id, result, vote_date).
+
+3️⃣ STOCK-Act PDF Pipeline
+File: backend/pipelines/stock_pipeline.py
+
+Crawl last 90 days of filings:
+
+House Clerk JSON endpoint
+https://disclosures-clerk.house.gov/public_disc/ptr-pdfs/2024/
+
+Senate search form returns JSON (use requests.post with form data).
+
+For each PDF:
+
+Queue Celery task parse_stock_pdf(filepath, pol_alias).
+
+In worker: use pdfplumber; regex rows into symbol, trade_date, amount.
+
+Insert into stock_trades and link alias source='house_fd' or 'senate_fd'.
+
+4️⃣ Shared helpers
+Create backend/pipelines/utils.py
+
+python
+Copy
+Edit
+def smart_download(url: str, dest: Path) -> tuple[Path, str]:
+    """Stream to dest, return (Path, sha256). Skip download if ETag unchanged
+       (store etag in pipeline_file_checksums)."""
+Use this in all pipelines.
+
+5️⃣ API Endpoints
+In backend/api/routes.py
+
+GET /pipelines/status → last 10 PipelineRun rows (name, status, rows, finished_at).
+
+POST /pipelines/run/{name} → trigger Celery task (fec_full, congress_full, stock_recent).
+
+CORS already enabled; just add the routes.
+
+6️⃣ Celery beat (periodic)
+Inside backend/celery.py:
+
+python
+Copy
+Edit
+from celery.schedules import crontab
+
+@app.on_after_finalize.connect
+def setup_periodic(sender, **_):
+    sender.add_periodic_task(crontab(hour=5, minute=0),  fec_full.s())
+    sender.add_periodic_task(crontab(hour=6, minute=0),  congress_full.s())
+    sender.add_periodic_task(crontab(hour=7, minute=0),  stock_recent.s(days=1))
+7️⃣ Tests
+Add tests/test_incremental.py:
+
+Mock a tiny CSV file twice. Second run must log "skipped" and ingest zero rows.
+
+Ensure a vote XML with bioguide A000360 creates a Politician and an alias.
+
+Run with pytest -q.
+
+8️⃣ Docs
+Update README.md:
+
+How to run a single pipeline (python -m backend.pipelines.fec_pipeline --year 2024).
+
+How to spin worker (celery -A backend.celery worker -l info -Q pdf_ocr).
+
+How to hit status endpoint.
+
+📌 Deliverables checklist for assistant
+All tasks coded & committed.
+
+pytest passes.
+
+uvicorn backend.api.routes:app --reload starts with no errors.
+
+curl /api/pipelines/status returns JSON array.
+
+Sample GET /politicians?limit=3 returns real names, photos, contribution totals.
+
+Please implement in this exact order, commit per logical task, and keep code comments concise.
+Let me know when the checklist is green or if you hit any unexpected edge-case in the raw data.
+
+
+
+
+
+
