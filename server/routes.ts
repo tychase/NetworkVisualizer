@@ -10,6 +10,7 @@ import {
   insertStockTransactionSchema,
 } from "@shared/schema";
 import pipelineRoutes from "./routes/pipeline-routes";
+import { updatePhotoUrls } from "./api/update-photo-urls";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Create HTTP server
@@ -409,6 +410,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/version", (req, res) => {
     res.json({ version: "1.0.0", environment: process.env.NODE_ENV });
   });
+  
+  // Update photo URLs
+  app.post("/api/update-photo-urls", updatePhotoUrls);
 
   // Sample data generator endpoint
   app.post("/api/politicians/:id/generate-data", async (req, res) => {
