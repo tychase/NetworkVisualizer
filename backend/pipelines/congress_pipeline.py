@@ -8,10 +8,12 @@ import json
 import requests
 import logging
 import tempfile
+import zipfile
 import xml.etree.ElementTree as ET
 from datetime import datetime
-from sqlalchemy import select, insert
+from sqlalchemy import select, insert, text
 from bs4 import BeautifulSoup
+from typing import List, Dict, Tuple, Optional, Any
 
 from backend.database import engine, SessionLocal, Base
 from shared.schema import politicians, votes
@@ -115,11 +117,19 @@ def fetch_congressman_list(congress_number=117):
                         party = party_code.strip()
                         state = state_code.strip()
                 
+                # Fix URL format if needed
+                full_url = member_url
+                if member_url and isinstance(member_url, str):
+                    if member_url.startswith('/'):
+                        full_url = f"https://www.congress.gov{member_url}"
+                    elif not member_url.startswith('http'):
+                        full_url = f"https://www.congress.gov/{member_url}"
+                
                 members.append({
                     'name': name,
                     'party': party,
                     'state': state,
-                    'url': f"https://www.congress.gov{member_url}" if member_url.startswith('/') else member_url,
+                    'url': full_url,
                     'congress': congress_number
                 })
             
@@ -668,25 +678,88 @@ def run_congress_pipeline(congress_number=117, session=1):
         db.commit()
         logger.info(f"💾 Members synced: {members_synced}")
     
-    # Download vote data for House and Senate
-    house_downloaded = download_vote_data(congress_number, session, "house")
-    senate_downloaded = download_vote_data(congress_number, session, "senate")
+    # Download vote data for all bill types
+    bill_types = ["hr", "s", "hjres", "sjres", "hconres", "sconres"]
+    download_results = download_vote_data(congress_number, session, bill_types)
     
-    # Process vote data (this is a simplified example)
-    # In a real implementation, we would need to extract and parse the files from the ZIP
-    # Here we're demonstrating the concept with a placeholder
+    # Track statistics
+    total_votes_inserted = 0
+    processed_bill_count = 0
+    failed_bill_count = 0
     
-    # Example bill status file (in practice, you would iterate through files in the ZIP)
-    bill_file = os.path.join(CONGRESS_DATA_DIR, "example_bill.xml")
+    # Process each downloaded bill type
+    for bill_type, success in download_results.items():
+        if not success:
+            logger.warning(f"Skipping {bill_type} data since download was not successful")
+            continue
+            
+        # Get the path to the downloaded file
+        bill_data_file = os.path.join(CONGRESS_DATA_DIR, f"BILLSTATUS-{congress_number}{bill_type}.zip")
+        
+        if not os.path.exists(bill_data_file):
+            logger.warning(f"File {bill_data_file} does not exist, skipping")
+            continue
+            
+        logger.info(f"Processing {bill_type} bill data from {bill_data_file}")
+        
+        try:
+            # Extract and process the ZIP file
+            with zipfile.ZipFile(bill_data_file, 'r') as zip_ref:
+                # Create a temporary directory for extraction
+                with tempfile.TemporaryDirectory() as temp_dir:
+                    zip_ref.extractall(temp_dir)
+                    
+                    # Process each XML file in the extracted directory
+                    xml_files = []
+                    for root, dirs, files in os.walk(temp_dir):
+                        for file in files:
+                            if file.endswith('.xml'):
+                                xml_files.append(os.path.join(root, file))
+                    
+                    logger.info(f"Found {len(xml_files)} XML files to process for {bill_type}")
+                    
+                    for xml_file in xml_files:
+                        try:
+                            # Process the bill status file
+                            processed_data = process_bill_status_file(xml_file)
+                            
+                            # Save votes to database
+                            if processed_data and processed_data.get('votes'):
+                                votes_inserted = save_votes_to_database(processed_data)
+                                total_votes_inserted += votes_inserted
+                                processed_bill_count += 1
+                                
+                                # Log progress for every 10 bills
+                                if processed_bill_count % 10 == 0:
+                                    logger.info(f"Processed {processed_bill_count} bills so far, inserted {total_votes_inserted} votes")
+                        except Exception as e:
+                            logger.error(f"Error processing bill file {xml_file}: {e}")
+                            failed_bill_count += 1
+                            continue
+        except Exception as e:
+            logger.error(f"Error processing bill type {bill_type}: {e}")
+            failed_bill_count += 1
+            continue
     
-    # This would normally be created by extracting from the ZIP file
-    # For this example, we're showing the processing logic
-    
-    # Process and save votes
-    #votes_data = process_bill_status_file(bill_file)
-    #save_votes_to_database(votes_data)
-    
-    logger.info("Congress.gov data pipeline completed")
+    logger.info(f"Congress pipeline completed: Processed {processed_bill_count} bills, failed {failed_bill_count}, inserted {total_votes_inserted} votes")
 
 if __name__ == "__main__":
-    run_congress_pipeline()
+    import argparse
+    
+    # Create argument parser
+    parser = argparse.ArgumentParser(description="Run the Congress.gov data pipeline")
+    parser.add_argument("--congress", type=int, default=117, help="The Congress number (e.g., 117)")
+    parser.add_argument("--session", type=int, default=1, help="The session number (e.g., 1)")
+    parser.add_argument("--bill-types", type=str, default="hr,s,hjres,sjres", help="Comma-separated list of bill types to download (e.g., hr,s)")
+    
+    # Parse arguments
+    args = parser.parse_args()
+    
+    # Split bill types
+    bill_types = args.bill_types.split(',')
+    
+    # Run pipeline with arguments
+    run_congress_pipeline(
+        congress_number=args.congress, 
+        session=args.session
+    )
