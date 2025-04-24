@@ -26,8 +26,7 @@ export function Portrait({ urls, alt = "Portrait", className = "h-16 w-16 rounde
       setSrc(fallback);
     } else {
       // If both primary and fallback fail, use a placeholder silhouette
-      // Note: In a production app, you should have a local placeholder image
-      setSrc('/img/placeholder.png');
+      setSrc('/img/placeholder.svg');
     }
   };
 

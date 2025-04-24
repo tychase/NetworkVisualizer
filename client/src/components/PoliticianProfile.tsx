@@ -60,7 +60,7 @@ const PoliticianProfile: React.FC<PoliticianProfileProps> = ({ politician }) => 
         <div className="flex items-center justify-between">
           <div className="flex items-center">
             <Portrait 
-              urls={politician.photoUrl || politician.profileImage || `/img/placeholder.svg`}
+              urls={politician.photoUrl || `/img/placeholder.svg`}
               alt={`${politician.firstName} ${politician.lastName}`} 
               className="h-12 w-12 rounded-full object-cover"
             />

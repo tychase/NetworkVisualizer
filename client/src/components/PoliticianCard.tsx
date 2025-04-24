@@ -54,7 +54,7 @@ const PoliticianCard: React.FC<PoliticianCardProps> = ({
       <div className="px-4 py-5 sm:p-6">
         <div className="flex items-center">
           <Portrait 
-            urls={politician.photoUrl || politician.profileImage || `/img/placeholder.svg`}
+            urls={politician.photoUrl || `/img/placeholder.svg`}
             alt={`${politician.firstName} ${politician.lastName}`} 
             className="h-16 w-16 rounded-full object-cover"
           />
