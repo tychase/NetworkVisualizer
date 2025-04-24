@@ -745,9 +745,18 @@ def process_contributions_data(file_path: str, run_id: int, batch_size: int = 10
         
         return False
 
-def run_fec_pipeline(force_download: bool = False, skip_candidates: bool = False, skip_contributions: bool = False) -> Dict:
+def run_fec_pipeline(force_download: bool = False, skip_candidates: bool = False, skip_contributions: bool = False, year: int = None) -> Dict:
     """
     Main function to run the FEC data pipeline with support for incremental updates
+    
+    Args:
+        force_download: Force download of data files even if they exist
+        skip_candidates: Skip processing of candidate data
+        skip_contributions: Skip processing of contribution data
+        year: Specific year to download bulk data for (e.g., 2022)
+        
+    Returns:
+        Dictionary with pipeline results
     """
     # Record pipeline run start
     run_id = record_pipeline_run("fec", "running")
@@ -765,6 +774,12 @@ def run_fec_pipeline(force_download: bool = False, skip_candidates: bool = False
     candidates_file = os.path.join(FEC_DATA_DIR, "candidates.csv")
     committees_file = os.path.join(FEC_DATA_DIR, "committees.csv")
     contributions_file = os.path.join(FEC_DATA_DIR, "contributions.csv")
+    
+    # For bulk download
+    bulk_download_file = None
+    if year:
+        logger.info(f"Specified year {year} for bulk download")
+        # Will be set if bulk download is successful
     
     results = {
         "success": False,
@@ -796,23 +811,78 @@ def run_fec_pipeline(force_download: bool = False, skip_candidates: bool = False
         
         # Process contributions
         if not skip_contributions:
-            # Download contributions data (this file is very large, may take a while)
-            contributions_downloaded, metadata = download_file(CONTRIBUTIONS_URL, contributions_file, force=force_download)
-            
-            # Process contributions data
-            if contributions_downloaded or force_download:
-                logger.info("Processing contributions data")
+            # Check if we need to use bulk download for a specific year
+            if year is not None:
+                # Use bulk download for the specified year
+                logger.info(f"Using bulk download for contributions from year {year}")
+                success, bulk_file_path = download_bulk(year)
                 
-                # Get last processed time for incremental processing
-                last_processed_time = metadata.get("contributions_last_processed")
-                
-                if process_contributions_data(contributions_file, run_id, last_processed_time=last_processed_time):
-                    results["contributions_processing"] = True
+                if success:
+                    bulk_download_file = bulk_file_path
+                    logger.info(f"Successfully downloaded bulk data for {year} to {bulk_download_file}")
+                    
+                    # Process the bulk file instead of the regular contributions file
+                    # Get last processed time for incremental processing
+                    with SessionLocal() as db:
+                        latest_contribution = db.execute(
+                            text("""
+                                SELECT MAX(contribution_date) as latest_date 
+                                FROM contributions
+                            """)
+                        ).fetchone()
+                        
+                        # Convert to datetime for filtering
+                        last_processed_time = None
+                        if latest_contribution and latest_contribution.latest_date:
+                            last_processed_time = latest_contribution.latest_date.isoformat()
+                            logger.info(f"Found latest contribution date: {last_processed_time}")
+                        
+                    # Process the bulk data with incremental support
+                    if process_contributions_data(bulk_download_file, run_id, last_processed_time=last_processed_time):
+                        results["contributions_processing"] = True
+                    else:
+                        results["errors"].append(f"Error processing bulk contributions data for year {year}")
                 else:
-                    results["errors"].append("Error processing contributions data")
+                    # Bulk download failed, fall back to regular download
+                    logger.error(f"Bulk download failed for year {year}, falling back to regular download")
+                    results["errors"].append(f"Bulk download failed for year {year}: {bulk_file_path}")
+                    
+                    # Continue with regular download as fallback
+                    contributions_downloaded, metadata = download_file(CONTRIBUTIONS_URL, contributions_file, force=force_download)
+                    
+                    # Process contributions data
+                    if contributions_downloaded or force_download:
+                        logger.info("Processing contributions data from regular download")
+                        
+                        # Get last processed time for incremental processing
+                        last_processed_time = metadata.get("contributions_last_processed")
+                        
+                        if process_contributions_data(contributions_file, run_id, last_processed_time=last_processed_time):
+                            results["contributions_processing"] = True
+                        else:
+                            results["errors"].append("Error processing contributions data")
+                    else:
+                        logger.info("No new contributions data to process")
+                        results["contributions_processing"] = True
             else:
-                logger.info("No new contributions data to process")
-                results["contributions_processing"] = True
+                # Regular download (no year specified)
+                logger.info("Using regular download for contributions")
+                contributions_downloaded, metadata = download_file(CONTRIBUTIONS_URL, contributions_file, force=force_download)
+                
+                # Process contributions data
+                if contributions_downloaded or force_download:
+                    logger.info("Processing contributions data")
+                    
+                    # Get last processed time for incremental processing
+                    last_processed_time = metadata.get("contributions_last_processed")
+                    
+                    if process_contributions_data(contributions_file, run_id, last_processed_time=last_processed_time):
+                        results["contributions_processing"] = True
+                    else:
+                        results["errors"].append("Error processing contributions data")
+                else:
+                    logger.info("No new contributions data to process")
+                    results["contributions_processing"] = True
         
         # Calculate duration
         end_time = time.time()
@@ -862,4 +932,22 @@ def run_fec_pipeline(force_download: bool = False, skip_candidates: bool = False
         return results
 
 if __name__ == "__main__":
-    run_fec_pipeline()
+    import argparse
+    
+    # Create argument parser
+    parser = argparse.ArgumentParser(description="Run the FEC data pipeline")
+    parser.add_argument("--force", action="store_true", help="Force download of all data files")
+    parser.add_argument("--skip-candidates", action="store_true", help="Skip processing of candidate data")
+    parser.add_argument("--skip-contributions", action="store_true", help="Skip processing of contribution data")
+    parser.add_argument("--year", type=int, help="Year to download bulk data for (e.g., 2022)")
+    
+    # Parse arguments
+    args = parser.parse_args()
+    
+    # Run pipeline with arguments
+    run_fec_pipeline(
+        force_download=args.force,
+        skip_candidates=args.skip_candidates,
+        skip_contributions=args.skip_contributions,
+        year=args.year
+    )
