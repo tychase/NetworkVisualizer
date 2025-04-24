@@ -12,11 +12,12 @@ import logging
 import hashlib
 import json
 import time
+import zipfile
 from datetime import datetime, timedelta
-from sqlalchemy import select, insert, Table
+from sqlalchemy import select, insert, Table, text
 from sqlalchemy.orm import Session
 from sqlalchemy.dialects.postgresql import insert as pg_insert
-from typing import Dict, Optional, Tuple
+from typing import Dict, Optional, Tuple, List
 
 from backend.database import engine, SessionLocal, Base
 from shared.schema import politicians, contributions, pipelineRuns
@@ -32,6 +33,7 @@ FEC_BULK_DATA_BASE_URL = os.environ.get("FEC_BULK_DATA_BASE_URL", "https://www.f
 CANDIDATE_MASTER_URL = os.environ.get("CANDIDATE_MASTER_URL", f"{FEC_BULK_DATA_BASE_URL}/candidate-master/cn.zip")
 COMMITTEE_MASTER_URL = os.environ.get("COMMITTEE_MASTER_URL", f"{FEC_BULK_DATA_BASE_URL}/committee-master/cm.zip")
 CONTRIBUTIONS_URL = os.environ.get("CONTRIBUTIONS_URL", f"{FEC_BULK_DATA_BASE_URL}/contributions/indiv.zip")
+FEC_INDIVIDUAL_CONTRIBUTIONS_FORMAT = "https://www.fec.gov/files/bulk-downloads/YYYY/indivYY.zip"
 
 # Data directories
 DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data")
@@ -137,6 +139,130 @@ def check_for_updates(url: str, local_path: str, metadata: Dict) -> bool:
         logger.error(f"Error checking for updates: {e}")
         # If error occurs, assume we need to update
         return True
+
+def download_bulk(year: int) -> Tuple[bool, str]:
+    """
+    Download bulk individual contributions data for a specific year using Accept-Encoding: gzip
+    
+    Args:
+        year: Year to download (e.g., 2022, 2024)
+        
+    Returns:
+        Tuple of (success, file_path)
+    """
+    logger.info(f"Downloading bulk FEC individual contributions data for {year}")
+    
+    # Ensure data directories exist
+    ensure_data_dirs()
+    
+    # Create the URL based on the specified year
+    # The FEC uses a 2-digit year format for the file name (e.g., indiv22.zip for 2022)
+    year_2digit = str(year)[-2:]
+    year_4digit = str(year)
+    
+    url = FEC_INDIVIDUAL_CONTRIBUTIONS_FORMAT.replace("YYYY", year_4digit).replace("YY", year_2digit)
+    local_path = os.path.join(FEC_DATA_DIR, f"indiv{year_2digit}.zip")
+    
+    # Check if this file already exists in our checksums table
+    with SessionLocal() as db:
+        # Check if our table exists, create if not
+        db.execute(text("""
+            CREATE TABLE IF NOT EXISTS pipeline_file_checksums (
+                id SERIAL PRIMARY KEY,
+                url TEXT NOT NULL,
+                filepath TEXT NOT NULL,
+                etag TEXT,
+                sha256 TEXT,
+                last_checked TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+            )
+        """))
+        db.commit()
+        
+        # Check for an existing record
+        existing_record = db.execute(
+            text("SELECT * FROM pipeline_file_checksums WHERE url = :url"),
+            {"url": url}
+        ).fetchone()
+    
+    # If we have an existing record and the file exists, we can skip the download
+    if existing_record and os.path.exists(local_path):
+        logger.info(f"File {url} already exists and has been downloaded previously")
+        return (True, local_path)
+    
+    # Download the file with gzip encoding support
+    headers = {
+        "Accept-Encoding": "gzip, deflate"
+    }
+    
+    try:
+        # Start with a HEAD request to get ETag and file size
+        head_response = requests.head(url, headers=headers)
+        head_response.raise_for_status()
+        
+        etag = head_response.headers.get("ETag")
+        file_size = int(head_response.headers.get("Content-Length", 0))
+        
+        logger.info(f"Downloading file of size: {file_size} bytes")
+        
+        # Download the file with progress reporting
+        with requests.get(url, headers=headers, stream=True) as response:
+            response.raise_for_status()
+            
+            # Open the file for writing
+            with open(local_path, 'wb') as f:
+                # Calculate hash while downloading
+                sha256 = hashlib.sha256()
+                downloaded = 0
+                
+                for chunk in response.iter_content(chunk_size=8192):
+                    if chunk:
+                        f.write(chunk)
+                        sha256.update(chunk)
+                        downloaded += len(chunk)
+                        
+                        # Log progress at 10% intervals
+                        if file_size > 0:
+                            percent = int((downloaded / file_size) * 100)
+                            if percent % 10 == 0:
+                                logger.info(f"Download progress: {percent}%")
+            
+            # Get the final hash
+            hash_value = sha256.hexdigest()
+        
+        # Record the file in our checksums table
+        with SessionLocal() as db:
+            if existing_record:
+                # Update existing record
+                db.execute(
+                    text("""
+                        UPDATE pipeline_file_checksums 
+                        SET etag = :etag, sha256 = :sha256, last_checked = CURRENT_TIMESTAMP
+                        WHERE url = :url
+                    """),
+                    {"url": url, "etag": etag, "sha256": hash_value}
+                )
+            else:
+                # Insert new record
+                db.execute(
+                    text("""
+                        INSERT INTO pipeline_file_checksums (url, filepath, etag, sha256)
+                        VALUES (:url, :filepath, :etag, :sha256)
+                    """),
+                    {
+                        "url": url, 
+                        "filepath": local_path, 
+                        "etag": etag, 
+                        "sha256": hash_value
+                    }
+                )
+            db.commit()
+        
+        logger.info(f"Successfully downloaded {url} to {local_path}")
+        return (True, local_path)
+        
+    except Exception as e:
+        logger.error(f"Error downloading bulk FEC data for {year}: {e}")
+        return (False, str(e))
 
 def download_file(url: str, local_path: str, force: bool = False) -> Tuple[bool, Dict]:
     """
